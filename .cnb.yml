@@ -1,0 +1,12 @@
+version: '1.0'
+
+stages:
+  - name: build-and-test
+    image: 'ubuntu:22.04'
+    pulls: true
+    script:
+      - 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash'
+      - 'export PATH="$HOME/.moon/bin:$PATH"'
+      - 'moon version'
+      - 'moon build --target wasm-gc'
+      - 'moon test --target wasm-gc'
