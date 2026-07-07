@@ -1,0 +1,8 @@
+{
+  "name": "yuzhiblue/moon-diff",
+  "version": "0.1.0",
+  "keywords": ["diff", "patch", "myers", "lcs", "text", "unified"],
+  "description": "A text diff and patch library for MoonBit: LCS & Myers diff, unified diff rendering and patch application.",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/yuzhiblue/moon-diff"
+}

@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MoonBit
+        uses: moonbit-lang/setup-moonbit@v1
+      - name: MoonBit version
+        run: moon version
+      - name: Test
+        run: moon test
+      - name: Build (wasm)
+        run: moon build --target wasm
