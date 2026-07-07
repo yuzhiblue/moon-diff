@@ -10,6 +10,38 @@ fn split_lines(s: String) -> Array[String] {
   out
 }
 
+/// A tiny linear integer map backed by an array of `(key, value)` pairs. It is
+/// used instead of `HashMap` so the package has **no external dependency** and
+/// compiles standalone. Lookups are O(n) but the maps here are tiny.
+fn imap_get[T: Eq](m: Array[(T, Int)], k: T) -> Int {
+  for p in m {
+    if p.0 == k {
+      return p.1
+    }
+  }
+  0
+}
+
+fn imap_inc[T: Eq](m: Array[(T, Int)], k: T) -> Unit {
+  for i = 0; i < m.length(); i = i + 1 {
+    if m[i].0 == k {
+      m[i] = (k, m[i].1 + 1)
+      return
+    }
+  }
+  m.push((k, 1))
+}
+
+fn imap_set[T: Eq](m: Array[(T, Int)], k: T, v: Int) -> Unit {
+  for i = 0; i < m.length(); i = i + 1 {
+    if m[i].0 == k {
+      m[i] = (k, v)
+      return
+    }
+  }
+  m.push((k, v))
+}
+
 /// Builds the longest-common-subsequence DP table for `a` and `b`.
 /// `dp[i][j]` is the length of the LCS of `a[0..i)` and `b[0..j)`.
 fn[T: Eq] lcs_table(a: Array[T], b: Array[T]) -> Array[Array[Int]] {
@@ -191,7 +223,7 @@ pub fn diff_lines(old: String, new: String) -> Array[Change[String]] {
 fn chars_of(s: String) -> Array[String] {
   let out: Array[String] = []
   for i = 0; i < s.length(); i = i + 1 {
-    out.push("\{s[i].to_int().unsafe_to_char()}")
+    out.push(String::from_array([s[i].to_int().unsafe_to_char()]))
   }
   out
 }
@@ -218,14 +250,14 @@ pub fn tokenize(s: String) -> Array[String] {
     let c = s[i].to_int().unsafe_to_char()
     let is_space = c == ' ' || c == '\t' || c == '\n' || c == '\r'
     if !started {
-      buf = "\{c}"
+      buf = String::from_array([c])
       was_space = is_space
       started = true
     } else if is_space == was_space {
-      buf = buf + "\{c}"
+      buf = buf + String::from_array([c])
     } else {
       toks.push(buf)
-      buf = "\{c}"
+      buf = String::from_array([c])
       was_space = is_space
     }
   }

@@ -180,3 +180,115 @@ test "word_diff_html marks del and ins" {
   assert_eq!(n, "the <ins>dog</ins> sat")
 }
 
+test "merge3 clean non-overlapping" {
+  let base = "1\n2\n3"
+  let ours = "1\n2\n3\n4"
+  let theirs = "0\n1\n2\n3"
+  let (merged, n) = merge3_count(base, ours, theirs)
+  assert_eq!(merged, "0\n1\n2\n3\n4")
+  assert_eq!(n, 0)
+}
+
+test "merge3 emits conflict markers" {
+  let base = "1\n2\n3\n4\n5"
+  let ours = "1\n2\nX\n4\n5"
+  let theirs = "1\n2\nY\n4\n5"
+  let r = merge3(split_lines(base), split_lines(ours), split_lines(theirs))
+  assert_eq!(r.has_conflict, true)
+  let merged = r.merged.join("\n")
+  assert_eq!(merged.contains("<<<<<<< ours"), true)
+  assert_eq!(merged.contains(">>>>>>> theirs"), true)
+}
+
+test "merge3 resolve ours drops markers" {
+  let base = "1\n2\n3\n4\n5"
+  let ours = "1\n2\nX\n4\n5"
+  let theirs = "1\n2\nY\n4\n5"
+  let r = merge3(split_lines(base), split_lines(ours), split_lines(theirs))
+  let resolved = merge3_resolve_ours(r).join("\n")
+  assert_eq!(resolved.contains("<<<<<<<"), false)
+  assert_eq!(resolved.contains(">>>>>>>"), false)
+  assert_eq!(resolved.contains("X"), true)
+}
+
+test "all algorithms reconstruct" {
+  let a = ["the", "quick", "brown", "fox"]
+  let b = ["the", "slow", "red", "fox", "here"]
+  let algos = [LCS, Myers, Patience, Histogram, Linear]
+  for algo in algos {
+    let ch = diff_algorithm(algo, a, b)
+    assert_eq!(to_new(ch), b)
+    assert_eq!(to_old(ch), a)
+  }
+}
+
+test "json diff produces patch" {
+  let patch = match json_diff_text("{\"a\":1}", "{\"a\":2}") {
+    Ok(s) => s
+    Err(_) => "ERR"
+  }
+  assert_eq!(patch.contains("\"op\":\"replace\""), true)
+  assert_eq!(patch.contains("/a"), true)
+}
+
+test "parse_json ok and fail" {
+  assert_eq!(parse_json("{\"x\":[1,true,null]}").is_ok(), true)
+  assert_eq!(parse_json("not json").is_ok(), false)
+}
+
+test "json round trip equal" {
+  let j = match parse_json("{\"x\":[1,true,null]}") {
+    Ok(v) => v
+    Err(_) => Null
+  }
+  let s = json_to_string(j)
+  let j2 = match parse_json(s) { Ok(v) => v; Err(_) => Null }
+  assert_eq!(json_equal(j, j2), true)
+}
+
+test "tree diff and patch apply round trip" {
+  let old_fs = [("a.txt", "1\n2\n3"), ("b.txt", "x\ny")]
+  let new_fs = [("a.txt", "1\n2\n3\n4"), ("c.txt", "hello")]
+  let patch = render_tree_patch(old_fs, new_fs, 50)
+  match apply_tree_patch(old_fs, patch) {
+    Ok(result) => {
+      let mut has_a = false
+      let mut has_c = false
+      let mut has_b = false
+      for p in result {
+        if p.0 == "a.txt" && p.1 == "1\n2\n3\n4" {
+          has_a = true
+        }
+        if p.0 == "c.txt" {
+          has_c = true
+        }
+        if p.0 == "b.txt" {
+          has_b = true
+        }
+      }
+      assert_eq!(has_a, true)
+      assert_eq!(has_c, true)
+      assert_eq!(has_b, false)
+    }
+    Err(_) => assert_eq!(1, 2)
+  }
+}
+
+test "tree diff summary" {
+  let old_fs = [("a.txt", "1\n2\n3")]
+  let new_fs = [("a.txt", "1\n2\n3\n4"), ("b.txt", "x")]
+  let td = diff_trees(old_fs, new_fs, 50)
+  let s = tree_diff_summary(td)
+  assert_eq!(s.contains("files changed"), true)
+}
+
+test "unified_to_html marks ins and del" {
+  let html = unified_to_html("a\nb", "a\nB", 3)
+  assert_eq!(html.contains("class=\"ins\""), true)
+  assert_eq!(html.contains("class=\"del\""), true)
+  assert_eq!(html.contains("<table"), true)
+  let page = diff_html_page("a\nb", "a\nB", 3, "My Diff")
+  assert_eq!(page.contains("<html>"), true)
+  assert_eq!(page.contains("class=\"ins\""), true)
+}
+

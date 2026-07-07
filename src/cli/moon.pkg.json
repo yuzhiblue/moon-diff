@@ -1,0 +1,5 @@
+{
+  "name": "cli",
+  "is-main": true,
+  "import": ["diff", "env"]
+}

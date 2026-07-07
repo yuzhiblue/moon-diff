@@ -2,35 +2,44 @@
 
 [![CI](https://github.com/yuzhiblue/moon-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzhiblue/moon-diff/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+[![mooncakes](https://img.shields.io/badge/mooncakes-yuzhiblue%2Fmoon--diff-blue)](https://mooncakes.io/package/yuzhiblue/moon-diff)
 
 A text **diff & patch** library for [MoonBit](https://www.moonbitlang.com/), written for the
 *MoonBit 国产基础软件生态开源大赛 (MGPIC 2026)*.
 
-`moon-diff` computes the difference between two sequences and renders/apply standard
+`moon-diff` computes the difference between two sequences and renders / applies standard
 **unified diffs** (the `diff -u` format used by Git, patch, etc.). It is generic over the
-element type, so it works on lines, tokens, AST nodes, or any `Array[T]`.
+element type, so it works on lines, tokens, AST nodes, or any `Array[T]`. On top of the core
+diff engine it also offers **5 diff algorithms**, a **3-way merge**, a **semantic JSON diff**,
+and a **multi-file tree diff** — all with zero external dependencies.
 
 ## Features
 
-- **Two diff algorithms** — classic LCS-based diff (`diff`) and Myers' `O(ND)` algorithm
-  (`myers_diff`) that produces a *minimal* edit script.
+- **Five diff algorithms** — classic LCS (`diff`), Myers' `O(ND)` minimal edit script
+  (`myers_diff`), Patience diff (`patience_diff`), Histogram diff (`histogram_diff`), and a
+  linear-space Hirschberg algorithm (`diff_linear`) that uses only `O(|a|+|b|)` memory.
 - **Unified diff rendering** — `to_unified` emits GNU `diff -u` style output with context
   lines and `@@` headers, compatible with standard `patch` tooling.
 - **Patch application** — `apply_unified` reads a unified diff back and reconstructs the
-  new text, so diffs are fully reversible.
-- **Generic & zero-dependency** — works on any `T` with `Eq` (and `Show` for rendering).
-  No external crates required.
-- **Small & fast** — self-contained `.mbt` files, constant-factor optimised DP tables.
-- **Token & character-level diff** — go finer than lines: `diff_tokens` diffs at word
-  granularity (whitespace preserved) and `diff_chars` at single-character granularity,
-  useful for inline/highlight diffs.
+  new text, so diffs are fully reversible. `apply_unified_fuzzy` tolerates offset / fuzz like
+  `patch`/`git apply`.
 - **Reverse apply (`patch -R`)** — `apply_unified_reverse` applies a unified diff *backwards*
-  (new → old) and `reverse_unified` flips a patch's `+`/`-` signs, so any diff is reversible.
+  (new → old) and `reverse_unified` flips a patch's `+`/`-` signs.
 - **Git-style & binary diff** — `git_diff_text` emits Git's `diff --git` / `index <sha>` headers,
   `git_blob_hash` computes the Git blob SHA-1, and `binary_diff` emits the
-  `Binary files ... differ` / `GIT binary patch` format used by `git diff --binary`.
-- **Verified SHA-1** — `sha1_hex` is a from-scratch, fully tested implementation (empty string,
-  the classic *fox* vector, and the 56-byte two-block vector all match).
+  `Binary files ... differ` format.
+- **Verified SHA-1** — `sha1_hex` is a from-scratch, fully tested implementation.
+- **Token & character-level diff** — `diff_tokens` (word granularity, whitespace preserved) and
+  `diff_chars` (single-character), plus `word_diff` / `word_diff_html` for inline highlighting.
+- **3-way merge** — `merge3` implements the classic *diff3* region strategy with conflict
+  markers and `git merge -X ours/theirs` style resolvers.
+- **Semantic JSON diff** — `json_diff_text` parses two JSON documents and emits an
+  [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) JSON Patch (object order-independent).
+- **Multi-file tree diff** — `diff_trees` / `render_tree_patch` / `apply_tree_patch` produce and
+  consume Git-style multi-file patches with rename detection.
+- **Generic & zero-dependency** — works on any `T` with `Eq` (and `Show` for rendering).
+- **Command-line tool** — `src/cli` is a runnable front-end (`diff`/`patch`/`merge`/`json`/`algo`)
+  that doubles as the project's runnable example.
 
 ## Install
 
@@ -64,106 +73,66 @@ let old_text = "line1\nline2\nline3\nline4\nline5"
 let new_text = "line1\nLINE2\nline3\nline4\nline5x"
 let patch = to_unified(diff_lines(old_text, new_text), "old.txt", "new.txt", 3)
 println(patch)
-// --- old.txt
-// +++ new.txt
-// @@ -1,5 +1,5 @@
-//  line1
-// -line2
-// +LINE2
-//  line3
-//  line4
-// -line5
-// +line5x
 
 // Apply the patch back — fully reversible
 let result = apply_unified(old_text, patch)
 // result == new_text
 ```
 
-### Myers' minimal edit script
-
-`myers_diff` finds the shortest edit path and is preferable when you want the *smallest*
-possible change set (e.g. for human-readable diffs):
+### Choosing a diff algorithm
 
 ```mbt
+import yuzhiblue/moon-diff/diff
+
 let a = ["the", "quick", "brown", "fox", "jumps"]
 let b = ["the", "slow", "brown", "fox", "sleeps"]
-let changes = myers_diff(a, b)
-// both to_new(changes) == b and to_old(changes) == a hold
+// all five produce an edit script whose to_new / to_old reconstruct b / a
+let ch = diff_algorithm(Patience, a, b)
+to_new(ch)  // == b
 ```
 
-### Token & character-level diff
-
-Beyond whole lines, `moon-diff` can diff at word or character granularity — handy for
-inline / syntax-highlighting diffs. Whitespace is preserved by `diff_tokens`:
+### 3-way merge
 
 ```mbt
-// Word-level diff (whitespace preserved)
-let a = "the cat sat on the mat"
-let b = "the dog sat on a mat"
-let tok = diff_tokens(a, b)
-changes_to_string(tok)  // "the dog sat on a mat"  (== b)
-to_old(tok).join("")    // "the cat sat on the mat" (== a)
+import yuzhiblue/moon-diff/diff
 
-// Character-level diff
-let ch = diff_chars("kitten", "sitting")
-changes_to_string(ch)   // "sitting"
+let (merged, n) = merge3_count("1\n2\n3", "1\n2\nX\n3", "1\n2\nY\n3")
+// merged contains diff3 conflict markers; n == 1 (one unresolved region)
 ```
 
-`tokenize` splits text into alternating word / whitespace runs, so the token diff stays
-faithful to the original spacing and newlines.
-
-### Reverse apply (`patch -R`)
-
-Every unified diff is reversible. `apply_unified_reverse` applies a patch *backwards*
-(new text → old text), and `reverse_unified` returns a patch with its `+`/`-` signs flipped:
+### Semantic JSON diff (RFC 6902)
 
 ```mbt
-let old = "line1\nline2\nline3\nline4\nline5"
-let new = "line1\nLINE2\nline3\nline4\nline5x"
-let patch = to_unified(diff_lines(old, new), "old.txt", "new.txt", 3)
+import yuzhiblue/moon-diff/diff
 
-apply_unified(old, patch)        // == new
-apply_unified_reverse(new, patch) // == old   (patch -R)
-
-let rev = reverse_unified(patch)
-apply_unified(new, rev)           // == old
+let patch = json_diff_text("{\"a\":1,\"b\":2}", "{\"a\":1,\"b\":3}")
+// patch == [{"op":"replace","path":"/b","value":3}]
 ```
 
-### Git-style & binary diff
-
-`git_diff_text` produces Git-compatible headers (`diff --git`, `index <sha> <sha>`,
-`--- a/`, `+++ b/`) that play well with `git apply`. `git_blob_hash` computes the
-standard Git blob SHA-1 (`sha1_hex("blob " + size + "\0" + content)`), and `binary_diff`
-emits the `Binary files ... differ` / `GIT binary patch` form used by `git diff --binary`:
+### Multi-file tree diff
 
 ```mbt
-let patch = git_diff_text(old, new, "a/file.txt", "b/file.txt", 3)
-git_blob_hash(old).length()  // 40 (hex SHA-1)
+import yuzhiblue/moon-diff/diff
 
-let bin = binary_diff("old bytes", "new bytes", "data.bin")
-// bin contains: "Binary files a/data.bin and b/data.bin differ"
-//               "GIT binary patch"
+let old_fs = [("a.txt", "1\n2\n3"), ("b.txt", "x\ny")]
+let new_fs = [("a.txt", "1\n2\n3\n4"), ("c.txt", "hello")]
+let patch = render_tree_patch(old_fs, new_fs, 50)
+let result = apply_tree_patch(old_fs, patch)  // Ok(new tree)
 ```
 
-`sha1_hex` itself is a from-scratch, fully-tested SHA-1 (the empty string, the *fox*
-sentence, and the 56-byte two-block vector all match the reference values).
+## Command-line tool
 
-### Performance benchmark
-
-`src/bench/bench.mbt` is a self-contained harness that diffs synthetic corpora with all
-three strategies and streams timing-friendly `RESULT` lines; `docs/benchmark.py` runs the
-same workloads through Python's `difflib` and compares them:
+The `src/cli` package is a runnable example. Because the Core SDK ships no filesystem package,
+multi-line inputs use the escape sequences `\n` (newline) and `\t` (tab):
 
 ```bash
-moon run --release src/bench        # MoonBit side
-python docs/benchmark.py            # MoonBit vs Python difflib, writes docs/bench_results.md
+moon run cli -- diff "line1\nline2" "line1\nLINE2"
+moon run cli -- patch "line1\nline2" "$(cat patch.txt)"     # patch text as one arg
+moon run cli -- merge "base" "ours" "theirs" --ours
+moon run cli -- json '{"a":1}' '{"a":2}'
+moon run cli -- algo "old text" "new text"                  # edit distance of all 5 algorithms
+moon run cli -- selftest                                   # internal consistency checks
 ```
-
-On low-edit (realistic) workloads MoonBit's Myers `O(ND)` implementation runs **up to ~3×
-faster** than CPython's `difflib.SequenceMatcher`; see `docs/bench_results.md` for the full
-table. (The optimised JS backend is used here because no system C compiler is installed for
-the native target; the production native build would be faster still.)
 
 ## API reference
 
@@ -180,30 +149,55 @@ the native target; the production native build would be faster still.)
 | `changes_to_string` | `fn changes_to_string(Array[Change[String]]) -> String` | reconstruct a `String` from a change list |
 | `to_unified` | `fn[T: Show] to_unified(Array[Change[T]], String, String, Int) -> String` | render a unified diff (`context` = lines of context) |
 | `apply_unified` | `fn apply_unified(String, String) -> String` | apply a unified diff to the old text |
+| `apply_unified_fuzzy` | `fn apply_unified_fuzzy(String, String, Int, Int) -> Result[String, String]` | apply with offset/fuzz tolerance |
 | `apply_unified_reverse` | `fn apply_unified_reverse(String, String) -> String` | apply a unified diff backwards (`patch -R`) |
 | `reverse_unified` | `fn reverse_unified(String) -> String` | flip a patch's `+`/`-` signs |
 | `git_diff_text` | `fn git_diff_text(String, String, String, String, Int) -> String` | Git-style `diff --git` / `index` headers |
 | `git_blob_hash` | `fn git_blob_hash(String) -> String` | Git blob SHA-1 of a string |
-| `binary_diff` | `fn binary_diff(String, String, String) -> String` | `git diff --binary` / `Binary files ... differ` format |
+| `binary_diff` | `fn binary_diff(String, String, String) -> String` | `Binary files ... differ` format |
 | `sha1_hex` | `fn sha1_hex(String) -> String` | from-scratch SHA-1 (hex) |
+| `word_diff` | `fn word_diff(String, String) -> String` | intra-line highlight (`[-x-]{+y+}`) |
+| `word_diff_html` | `fn word_diff_html(String, String) -> (String, String)` | `<del>`/`<ins>` HTML highlighting |
+| `diff_algorithm` | `fn diff_algorithm(DiffAlgorithm, Array[T], Array[T]) -> Array[Change[T]]` | dispatch to any algorithm |
+| `patience_diff` | `fn patience_diff(Array[T], Array[T]) -> Array[Change[T]]` | Patience diff |
+| `histogram_diff` | `fn histogram_diff(Array[T], Array[T]) -> Array[Change[T]]` | Histogram diff |
+| `diff_linear` | `fn diff_linear(Array[T], Array[T]) -> Array[Change[T]]` | linear-space Hirschberg diff |
+| `merge3` | `fn merge3(Array[String], Array[String], Array[String]) -> MergeResult` | 3-way merge (diff3) |
+| `merge3_text` | `fn merge3_text(String, String, String) -> String` | 3-way merge returning text |
+| `merge3_count` | `fn merge3_count(String, String, String) -> (String, Int)` | merge + conflict count |
+| `merge3_resolve_ours` | `fn merge3_resolve_ours(MergeResult) -> Array[String]` | resolve conflicts with `ours` |
+| `merge3_resolve_theirs` | `fn merge3_resolve_theirs(MergeResult) -> Array[String]` | resolve conflicts with `theirs` |
+| `parse_json` | `fn parse_json(String) -> Result[Json, String]` | parse a JSON document |
+| `json_equal` | `fn json_equal(Json, Json) -> Bool` | deep structural equality |
+| `json_to_string` | `fn json_to_string(Json) -> String` | serialise JSON to text |
+| `json_diff` | `fn json_diff(Json, Json, String) -> Array[JsonPatchOp]` | RFC 6902 diff |
+| `json_patch_to_string` | `fn json_patch_to_string(Array[JsonPatchOp]) -> String` | render a JSON Patch document |
+| `json_diff_text` | `fn json_diff_text(String, String) -> Result[String, String]` | JSON Patch of A → B |
+| `diff_trees` | `fn diff_trees(Array[(String,String)], Array[(String,String)], Int) -> TreeDiff` | diff two file trees |
+| `render_tree_patch` | `fn render_tree_patch(Array[(String,String)], Array[(String,String)], Int) -> String` | Git multi-file patch |
+| `apply_tree_patch` | `fn apply_tree_patch(Array[(String,String)], String) -> Result[Array[(String,String)], String]` | apply a multi-file patch |
+| `tree_diff_summary` | `fn tree_diff_summary(TreeDiff) -> String` | `N files changed, ...` summary |
+| `unified_to_html` | `fn unified_to_html(String, String, Int) -> String` | render a unified diff as an HTML `<table>` |
+| `diff_html_page` | `fn diff_html_page(String, String, Int, String) -> String` | full HTML page (inline CSS) for a diff |
 
 `Change[T]` is `Equal(T) | Delete(T) | Insert(T)`.
 
 ## How it works
 
-- **`diff`** builds an LCS DP table `dp[i][j]` (length of LCS of `a[0..i)` and `b[0..j)`)
-  and backtracks it to recover `Equal` / `Delete` / `Insert` operations in forward order.
-- **`myers_diff`** runs the classic Myers algorithm with the `V` array + trace, then
-  backtracks the trace to recover a *minimal* edit script (same edit distance as `diff`,
-  usually fewer/cleaner operations).
-- **`to_unified`** walks the change list, groups changed lines into hunks of `context`
-  surrounding lines, and emits `@@ -old,count +new,count @@` headers.
-- **`apply_unified`** parses those headers and replays `+`/`-`/space lines onto the old text.
-- **`sha1_hex`** (in `git.mbt`) is a from-scratch SHA-1: it pads the input into 512-bit
-  blocks, runs the 80-round compression, and returns the hex digest. `git_blob_hash` wraps
-  it as `blob <size>\0<content>` (Git's blob object format), while `git_diff_text` /
-  `binary_diff` wrap `to_unified` with Git's `diff --git` / `index` headers and the binary
-  `GIT binary patch` form.
+- **`diff`** builds an LCS DP table `dp[i][j]` and backtracks it to recover `Equal` / `Delete` /
+  `Insert` operations in forward order.
+- **`myers_diff`** runs the classic Myers algorithm with the `V` array + trace, then backtracks
+  the trace to recover a *minimal* edit script.
+- **`patience_diff`** / **`histogram_diff`** pick unique/frequent anchor lines and recurse into
+  the gaps for more "human" alignments.
+- **`diff_linear`** (Hirschberg) splits the problem in the middle and recurses, using only
+  `O(|a|+|b|)` memory regardless of input size.
+- **`merge3`** decomposes each branch into base-line-aligned replacement blocks, then merges per
+  region: identical → keep, one-sided change → take it, both-different → conflict markers.
+- **`json_diff`** walks two JSON values and emits RFC 6902 `add`/`remove`/`replace` ops; object
+  members are compared by key (order-independent), arrays positionally.
+- **`to_unified`** / **`apply_unified`** walk the change list and emit / replay `@@ ... @@`
+  hunks; **`sha1_hex`** (in `git.mbt`) is a from-scratch SHA-1 used for Git blob hashes.
 
 ### Complexity
 
@@ -211,6 +205,8 @@ the native target; the production native build would be faster still.)
 |-----------|------|-------|
 | `diff` (LCS) | `O(n·m)` | `O(n·m)` |
 | `myers_diff` | `O((n+m)·D)` | `O((n+m)·D)` |
+| `patience_diff` / `histogram_diff` | `O(n·m)` (amortised) | `O(n·m)` |
+| `diff_linear` (Hirschberg) | `O(n·m)` | `O(n+m)` |
 | `to_unified` / `apply_unified` | `O(n)` | `O(n)` |
 
 where `n, m` are the sequence lengths and `D` is the edit distance.
@@ -218,13 +214,13 @@ where `n, m` are the sequence lengths and `D` is the edit distance.
 ## Build & test
 
 ```bash
-moon build                  # build all packages (default + bench)
-moon test                   # run the test suite (15 cases)
+moon build                  # build all packages (default + bench + cli)
+moon test                   # run the test suite (30 cases)
+moon run cli -- selftest    # run the CLI's internal consistency checks
 moon run --release src/bench  # run the benchmark harness (MoonBit side)
-python docs/benchmark.py    # MoonBit vs Python difflib comparison
 ```
 
-CI runs `moon test` on every push/PR via `.github/workflows/ci.yml`.
+CI runs `moon build` and `moon test` on every push/PR via `.github/workflows/ci.yml`.
 
 ## Project layout
 
@@ -232,16 +228,24 @@ CI runs `moon test` on every push/PR via `.github/workflows/ci.yml`.
 moon.mod.json
 src/diff/
   types.mbt      # Change enum: Equal / Delete / Insert
-  core.mbt       # lcs_table, diff, myers_diff, to_new / to_old, diff_lines, diff_chars, diff_tokens, tokenize
-  unified.mbt    # to_unified, apply_unified, apply_unified_reverse, reverse_unified
+  core.mbt       # lcs_table, diff, myers_diff, to_new / to_old, diff_lines, diff_chars, diff_tokens, tokenize, word_diff, word_diff_html
+  unified.mbt    # to_unified, apply_unified, apply_unified_fuzzy, apply_unified_reverse, reverse_unified
   git.mbt        # sha1_hex, git_blob_hash, git_diff_text, binary_diff
+  merge.mbt      # merge3, merge3_text, merge3_count, resolve_ours / resolve_theirs
+  algorithms.mbt # DiffAlgorithm, diff_algorithm, patience_diff, histogram_diff, diff_linear
+  semantic.mbt   # JSON parser, json_equal, json_diff (RFC 6902), json_diff_text
+  dir.mbt        # diff_trees, render_tree_patch, apply_tree_patch, tree_diff_summary
   diff_test.mbt  # test blocks (run with `moon test`)
+src/cli/
+  main.mbt       # command-line front-end (diff / patch / merge / json / algo / selftest)
+  moon.pkg.json
 src/bench/
   bench.mbt      # benchmark harness (RESULT-line protocol)
   moon.pkg.json
 docs/
   benchmark.py   # MoonBit vs Python difflib driver
   bench_results.md
+  loc.py         # effective-line-of-code counter (excludes comments / blanks)
 ```
 
 ## Roadmap
@@ -249,9 +253,14 @@ docs/
 - [x] Character/token-level diff mode (not only line-level).
 - [x] Reverse apply (`patch -R`) via `apply_unified_reverse` / `reverse_unified`.
 - [x] Git-style & binary diff (`git_diff_text`, `binary_diff`) + verified SHA-1.
-- [x] Benchmark suite vs. reference implementations (`difflib`).
 - [x] `patch`/`git apply`-compatible heuristics (fuzz, offset) via `apply_unified_fuzzy`.
 - [x] `word_diff` / `word_diff_html` for intra-line highlighting.
+- [x] Five diff algorithms (LCS, Myers, Patience, Histogram, linear-space Hirschberg).
+- [x] 3-way merge with conflict markers and `ours`/`theirs` resolvers.
+- [x] Semantic JSON diff (RFC 6902 JSON Patch).
+- [x] Multi-file tree diff with rename detection (Git-style patch apply).
+- [x] Command-line front-end / runnable example (`src/cli`).
+- [ ] `moonbitlang/x/fs`-backed file I/O for the CLI (currently argument/stdin based).
 
 ## License
 
@@ -261,3 +270,4 @@ Apache License 2.0 — see [LICENSE](./LICENSE).
 
 - Repository: <https://github.com/yuzhiblue/moon-diff>
 - MoonBit: <https://www.moonbitlang.com/>
+- mooncakes: <https://mooncakes.io/package/yuzhiblue/moon-diff>

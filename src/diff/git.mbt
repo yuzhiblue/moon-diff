@@ -109,7 +109,7 @@ fn to_hex(words: Array[Int]) -> String {
   for w in words {
     for s in nibbles {
       let nibble = (w >> s) & 0xf
-      out.push("\{hex_chars[nibble].to_int().unsafe_to_char()}")
+      out.push(String::from_array([hex_chars[nibble].to_int().unsafe_to_char()]))
     }
   }
   out.join("")

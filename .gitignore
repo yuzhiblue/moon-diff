@@ -1,5 +1,13 @@
-/target
-*.log
-/_build
-**/_build/
+# MoonBit build artifacts
+*.ast
+*.mi
+*.typechecked
+
+# MoonBit build output
+_build/
+
+# Generated docs output
+docs/*.txt
+
+# IDE / agent data (project memory, not source)
 .codebuddy/
