@@ -1,4 +1,5 @@
 /target
 *.log
 /_build
+**/_build/
 .codebuddy/

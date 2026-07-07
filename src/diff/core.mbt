@@ -186,3 +186,57 @@ pub fn[T] to_old(changes: Array[Change[T]]) -> Array[T] {
 pub fn diff_lines(old: String, new: String) -> Array[Change[String]] {
   diff(split_lines(old), split_lines(new))
 }
+
+/// Splits `s` into an array of single-character strings (preserves order).
+fn chars_of(s: String) -> Array[String] {
+  let out: Array[String] = []
+  for i = 0; i < s.length(); i = i + 1 {
+    out.push("\{s[i].to_int().unsafe_to_char()}")
+  }
+  out
+}
+
+/// Diffs two strings at **character** granularity.
+pub fn diff_chars(old: String, new: String) -> Array[Change[String]] {
+  diff(chars_of(old), chars_of(new))
+}
+
+/// Reconstructs the *new* string from a `Change[String]` list (e.g. one
+/// produced by `diff_chars` / `diff_tokens`).
+pub fn changes_to_string(changes: Array[Change[String]]) -> String {
+  to_new(changes).join("")
+}
+
+/// Tokenises text into alternating word / non-word runs so that diffing the
+/// tokens preserves surrounding whitespace. e.g. `"a b"` -> `["a", " ", "b"]`.
+pub fn tokenize(s: String) -> Array[String] {
+  let toks: Array[String] = []
+  let mut buf = ""
+  let mut was_space = false
+  let mut started = false
+  for i = 0; i < s.length(); i = i + 1 {
+    let c = s[i].to_int().unsafe_to_char()
+    let is_space = c == ' ' || c == '\t' || c == '\n' || c == '\r'
+    if !started {
+      buf = "\{c}"
+      was_space = is_space
+      started = true
+    } else if is_space == was_space {
+      buf = buf + "\{c}"
+    } else {
+      toks.push(buf)
+      buf = "\{c}"
+      was_space = is_space
+    }
+  }
+  if started {
+    toks.push(buf)
+  }
+  toks
+}
+
+/// Diffs two strings at **word / token** granularity (finer than lines,
+/// coarser than characters). Whitespace is preserved.
+pub fn diff_tokens(old: String, new: String) -> Array[Change[String]] {
+  diff(tokenize(old), tokenize(new))
+}

@@ -164,3 +164,131 @@ pub fn apply_unified(old_text: String, patch: String) -> String {
   }
   result.join("\n")
 }
+
+/// Parses the *new-file* starting line number from a `@@ -a,b +c,d @@` header.
+fn parse_new_start(header: String) -> Int {
+  let mut i = 0
+  let len = header.length()
+  while i < len && header[i].to_int() != '+'.to_int() {
+    i = i + 1
+  }
+  i = i + 1
+  let mut num = 0
+  while i < len && is_digit_char(header[i].to_int()) {
+    num = num * 10 + digit_from_char(header[i].to_int())
+    i = i + 1
+  }
+  num
+}
+
+/// Swaps the `-a,b` / `+c,d` ranges inside a `@@ ... @@` header.
+fn reverse_header(h: String) -> String {
+  let len = h.length()
+  let mut i = 0
+  while i < len && h[i] != '-' {
+    i = i + 1
+  }
+  i = i + 1
+  let mut a = 0
+  while i < len && is_digit_char(h[i].to_int()) {
+    a = a * 10 + digit_from_char(h[i].to_int())
+    i = i + 1
+  }
+  i = i + 1 // skip ','
+  let mut b = 0
+  while i < len && is_digit_char(h[i].to_int()) {
+    b = b * 10 + digit_from_char(h[i].to_int())
+    i = i + 1
+  }
+  while i < len && h[i] != '+' {
+    i = i + 1
+  }
+  i = i + 1
+  let mut c = 0
+  while i < len && is_digit_char(h[i].to_int()) {
+    c = c * 10 + digit_from_char(h[i].to_int())
+    i = i + 1
+  }
+  i = i + 1 // skip ','
+  let mut d = 0
+  while i < len && is_digit_char(h[i].to_int()) {
+    d = d * 10 + digit_from_char(h[i].to_int())
+    i = i + 1
+  }
+  "@@ -" + c.to_string() + "," + d.to_string() + " +" + a.to_string() + "," +
+  b.to_string() + " @@"
+}
+
+/// Applies a unified diff in the *reverse* direction: given the **new** text
+/// and the patch (old -> new), it reconstructs the **old** text. This mirrors
+/// the behaviour of `patch -R`.
+pub fn apply_unified_reverse(new_text: String, patch: String) -> String {
+  let new_lines = split_lines(new_text)
+  let patch_lines = split_lines(patch)
+  let result: Array[String] = []
+  let mut new_idx = 0
+  let mut i = 0
+  while i < patch_lines.length() {
+    let line = patch_lines[i]
+    if is_meta(line) {
+      if line.length() >= 2 && line[0] == '@' {
+        let target = parse_new_start(line) - 1
+        while new_idx < target {
+          result.push(new_lines[new_idx])
+          new_idx = new_idx + 1
+        }
+      }
+      i = i + 1
+      continue
+    }
+    if line.length() == 0 {
+      i = i + 1
+      continue
+    }
+    let first = line[0]
+    if first == ' ' {
+      result.push(line[1:].to_owned())
+      new_idx = new_idx + 1
+    } else if first == '+' {
+      // forward insertion: absent from the old text, just consume it
+      new_idx = new_idx + 1
+    } else if first == '-' {
+      // forward deletion: restore it in the old text
+      result.push(line[1:].to_owned())
+    }
+    i = i + 1
+  }
+  while new_idx < new_lines.length() {
+    result.push(new_lines[new_idx])
+    new_idx = new_idx + 1
+  }
+  result.join("\n")
+}
+
+/// Returns the reversed patch (new -> old) by swapping `-`/`+` markers and the
+/// `---`/`+++` and `@@` header ranges. The result can be applied with the
+/// regular `apply_unified`. Equivalent to `patch -R` on the patch file.
+pub fn reverse_unified(patch: String) -> String {
+  let lines = split_lines(patch)
+  let out: Array[String] = []
+  for line in lines {
+    if line.length() >= 4 && line[0] == '-' && line[1] == '-' && line[2] == '-' &&
+       line[3] == ' ' {
+      out.push("+++" + line[3:].to_owned())
+    } else if line.length() >= 4 && line[0] == '+' && line[1] == '+' &&
+       line[2] == '+' && line[3] == ' ' {
+      out.push("---" + line[3:].to_owned())
+    } else if line.length() >= 2 && line[0] == '@' && line[1] == '@' {
+      out.push(reverse_header(line))
+    } else if line.length() >= 1 && (line[0] == '-' || line[0] == '+') {
+      if line[0] == '-' {
+        out.push("+" + line[1:].to_owned())
+      } else {
+        out.push("-" + line[1:].to_owned())
+      }
+    } else {
+      out.push(line)
+    }
+  }
+  out.join("\n")
+}
