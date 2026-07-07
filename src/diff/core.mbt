@@ -240,3 +240,49 @@ pub fn tokenize(s: String) -> Array[String] {
 pub fn diff_tokens(old: String, new: String) -> Array[Change[String]] {
   diff(tokenize(old), tokenize(new))
 }
+
+/// Computes a **word/token-level** diff of two *single lines* and returns it as
+/// a single combined string for intra-line highlighting. Removed runs are
+/// wrapped in `[- … -]` and added runs in `{+ … +}`, mirroring the way a
+/// unified diff marks changed words inside a modified line.
+///
+/// ```moonbit
+/// word_diff("the cat sat", "the dog sat") // => "the [-cat-]{+dog+} sat"
+/// ```
+pub fn word_diff(old: String, new: String) -> String {
+  let ch = diff_tokens(old, new)
+  let mut out = ""
+  for c in ch {
+    match c {
+      Equal(t) => out = out + t
+      Delete(t) => out = out + "[-" + t + "-]"
+      Insert(t) => out = out + "{+" + t + "+}"
+    }
+  }
+  out
+}
+
+/// Renders intra-line highlighting as HTML: the old line has removed words
+/// wrapped in `<del>…</del>` and the new line has added words wrapped in
+/// `<ins>…</ins>`, mirroring GitHub's inline diff rendering.
+///
+/// ```moonbit
+/// word_diff_html("the cat sat", "the dog sat")
+/// // => ("the <del>cat</del> sat", "the <ins>dog</ins> sat")
+/// ```
+pub fn word_diff_html(old: String, new: String) -> (String, String) {
+  let ch = diff_tokens(old, new)
+  let mut old_out = ""
+  let mut new_out = ""
+  for c in ch {
+    match c {
+      Equal(t) => {
+        old_out = old_out + t
+        new_out = new_out + t
+      }
+      Delete(t) => old_out = old_out + "<del>" + t + "</del>"
+      Insert(t) => new_out = new_out + "<ins>" + t + "</ins>"
+    }
+  }
+  (old_out, new_out)
+}

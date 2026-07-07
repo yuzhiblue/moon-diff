@@ -129,3 +129,54 @@ test "binary diff format" {
   assert_eq!(patch.contains("index "), true)
 }
 
+test "fuzzy apply with offset" {
+  let old = "a\nb\nc\nd\ne\nf\ng"
+  let new = "a\nb\nc\nd\nX\nf\ng"
+  // patch claims the change is at line 7, but it is really at line 5
+  let patch =
+    "@@ -7,3 +7,3 @@\n d\n-e\n+X\n f\n"
+  let got =
+    match apply_unified_fuzzy(old, patch, 0, 3) {
+      Ok(x) => x
+      Err(m) => m
+    }
+  assert_eq!(got, new)
+}
+
+test "fuzzy apply with fuzz" {
+  // first context line is stale ("ONE"); core still matches with fuzz
+  let old = "one\ntwo\nthree\nfour\nfive"
+  let new = "one\nTWO\nthree\nfour\nfive"
+  let patch =
+    "@@ -1,5 +1,5 @@\n ONE\n-two\n+TWO\n three\n four\n five\n"
+  let got =
+    match apply_unified_fuzzy(old, patch, 2, 0) {
+      Ok(x) => x
+      Err(m) => m
+    }
+  assert_eq!(got, new)
+}
+
+test "fuzzy apply fails when tolerance exceeded" {
+  let old = "a\nb\nc\nd\ne"
+  let patch = "@@ -1,3 +1,3 @@\n x\n-y\n+Z\n z\n"
+  let ok =
+    match apply_unified_fuzzy(old, patch, 0, 0) {
+      Ok(_) => true
+      Err(_) => false
+    }
+  assert_eq!(ok, false)
+}
+
+test "word_diff intra-line highlight" {
+  let s = word_diff("the cat sat on the mat", "the dog sat on a mat")
+  // insertions and deletions are interleaved by the token diff
+  assert_eq!(s, "the {+dog+}[-cat-] sat on {+a+}[-the-] mat")
+}
+
+test "word_diff_html marks del and ins" {
+  let (o, n) = word_diff_html("the cat sat", "the dog sat")
+  assert_eq!(o, "the <del>cat</del> sat")
+  assert_eq!(n, "the <ins>dog</ins> sat")
+}
+

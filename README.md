@@ -250,8 +250,8 @@ docs/
 - [x] Reverse apply (`patch -R`) via `apply_unified_reverse` / `reverse_unified`.
 - [x] Git-style & binary diff (`git_diff_text`, `binary_diff`) + verified SHA-1.
 - [x] Benchmark suite vs. reference implementations (`difflib`).
-- [ ] `patch`/`git apply`-compatible heuristics (fuzz, offset).
-- [ ] `word_diff` for intra-line highlighting.
+- [x] `patch`/`git apply`-compatible heuristics (fuzz, offset) via `apply_unified_fuzzy`.
+- [x] `word_diff` / `word_diff_html` for intra-line highlighting.
 
 ## License
 

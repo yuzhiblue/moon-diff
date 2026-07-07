@@ -165,6 +165,214 @@ pub fn apply_unified(old_text: String, patch: String) -> String {
   result.join("\n")
 }
 
+/// A single operation inside a parsed unified-diff hunk.
+priv struct Op2 {
+  kind: Char
+  text: String
+}
+
+/// A parsed unified-diff hunk (header + body operations).
+priv struct Hunk {
+  old_start: Int
+  old_len: Int
+  ops: Array[Op2]
+}
+
+/// Parses a unified-diff string into a list of `Hunk`s. Header lines
+/// (`---`, `+++`, `diff --git`, `index`) and `@@ ... @@` separators are
+/// consumed; the body lines (` `, `-`, `+`) become `Op2` records.
+fn parse_hunks(patch: String) -> Array[Hunk] {
+  let patch_lines = split_lines(patch)
+  let hunks: Array[Hunk] = []
+  let mut cur_ops: Array[Op2] = []
+  let mut cur_old_len = 0
+  let mut cur_start = 0
+  let mut in_hunk = false
+  for line in patch_lines {
+    if line.length() == 0 {
+      continue
+    }
+    if line.length() >= 2 && line[0] == '@' && line[1] == '@' {
+      if in_hunk {
+        hunks.push(
+          Hunk::{ old_start: cur_start, old_len: cur_old_len, ops: cur_ops },
+        )
+      }
+      cur_start = parse_old_start(line) - 1
+      cur_ops = []
+      cur_old_len = 0
+      in_hunk = true
+      continue
+    }
+    if is_meta(line) {
+      continue
+    }
+    let first = line[0]
+    let text = line[1:].to_owned()
+    let kind =
+      if first == ' ' {
+        ' '
+      } else if first == '-' {
+        '-'
+      } else if first == '+' {
+        '+'
+      } else {
+        ' '
+      }
+    cur_ops.push(Op2::{ kind, text })
+    if kind == ' ' || kind == '-' {
+      cur_old_len = cur_old_len + 1
+    }
+  }
+  if in_hunk {
+    hunks.push(Hunk::{ old_start: cur_start, old_len: cur_old_len, ops: cur_ops })
+  }
+  hunks
+}
+
+/// Counts up to `n` leading *context* (` `) lines of a hunk body.
+fn leading_context(ops: Array[Op2], n: Int) -> Int {
+  let mut c = 0
+  for op in ops {
+    if op.kind != ' ' {
+      break
+    }
+    if c == n {
+      break
+    }
+    c = c + 1
+  }
+  c
+}
+
+/// Counts up to `n` trailing *context* (` `) lines of a hunk body.
+fn trailing_context(ops: Array[Op2], n: Int) -> Int {
+  let len = ops.length()
+  let mut c = 0
+  let mut i = len - 1
+  while i >= 0 {
+    let op = ops[i]
+    if op.kind != ' ' {
+      break
+    }
+    if c == n {
+      break
+    }
+    c = c + 1
+    i = i - 1
+  }
+  c
+}
+
+/// Applies a unified diff with `patch`/`git apply`-style tolerance for
+/// **offset** (the `@@` line numbers are off) and **fuzz** (some leading /
+/// trailing context lines no longer match).
+///
+/// * `max_offset` — how many lines up/down the hunk may be shifted from the
+///   position stated in its header.
+/// * `max_fuzz` — how many leading/trailing context lines may be ignored when
+///   matching (mirrors `patch`'s `-F`/fuzz factor; the default is 2).
+///
+/// Returns `Ok(new_text)` on success, or `Err(msg)` if a hunk cannot be placed
+/// within the given tolerance. Smaller offset and smaller fuzz are preferred.
+pub fn apply_unified_fuzzy(
+  old_text: String,
+  patch: String,
+  max_fuzz: Int,
+  max_offset: Int
+) -> Result[String, String] {
+  let old_lines = split_lines(old_text)
+  let hunks = parse_hunks(patch)
+  if hunks.length() == 0 {
+    return Ok(old_text)
+  }
+  let result: Array[String] = []
+  let mut old_pos = 0
+  for h in hunks {
+    let expected = h.old_start
+    let ops = h.ops
+    let len = ops.length()
+    let mut placed = false
+    let mut chosen_p = 0
+    for fz = 0; fz <= max_fuzz; fz = fz + 1 {
+      let lead = leading_context(ops, fz)
+      let trail = trailing_context(ops, fz)
+      let core: Array[String] = []
+      for i = lead; i < len - trail; i = i + 1 {
+        let op = ops[i]
+        if op.kind == ' ' || op.kind == '-' {
+          core.push(op.text)
+        }
+      }
+      let mut d = 0
+      while d <= max_offset {
+        let offs = if d == 0 { [0] } else { [-d, d] }
+        for c in offs {
+          let p = expected + c
+          let q = p + lead
+          if p < 0 {
+            continue
+          }
+          if q < old_pos {
+            continue
+          }
+          if q + core.length() > old_lines.length() {
+            continue
+          }
+          if p + h.old_len > old_lines.length() {
+            continue
+          }
+          let mut ok = true
+          for k = 0; k < core.length(); k = k + 1 {
+            if old_lines[q + k] != core[k] {
+              ok = false
+              break
+            }
+          }
+          if ok {
+            chosen_p = p
+            placed = true
+            break
+          }
+        }
+        if placed {
+          break
+        }
+        d = d + 1
+      }
+      if placed {
+        break
+      }
+    }
+    if !placed {
+      return Err(
+        "failed to apply hunk near line " +
+          (expected + 1).to_string() +
+          " (offset/fuzz exhausted)",
+      )
+    }
+    for k = old_pos; k < chosen_p; k = k + 1 {
+      result.push(old_lines[k])
+    }
+    let mut old_i = 0
+    for op in ops {
+      if op.kind == '-' {
+        old_i = old_i + 1
+      } else if op.kind == ' ' {
+        result.push(old_lines[chosen_p + old_i])
+        old_i = old_i + 1
+      } else {
+        result.push(op.text)
+      }
+    }
+    old_pos = chosen_p + h.old_len
+  }
+  for k = old_pos; k < old_lines.length(); k = k + 1 {
+    result.push(old_lines[k])
+  }
+  Ok(result.join("\n"))
+}
+
 /// Parses the *new-file* starting line number from a `@@ -a,b +c,d @@` header.
 fn parse_new_start(header: String) -> Int {
   let mut i = 0
