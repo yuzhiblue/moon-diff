@@ -5,9 +5,9 @@
 /// versions of the conflicting region so a human (or a smarter resolver) can
 /// decide what the merged result should be.
 pub struct MergeConflict {
-  pub base: Array[String]
-  pub ours: Array[String]
-  pub theirs: Array[String]
+  base: Array[String]
+  ours: Array[String]
+  theirs: Array[String]
 }
 
 /// The outcome of a 3-way merge. `merged` is the full line list; when a region
@@ -16,9 +16,9 @@ pub struct MergeConflict {
 /// so `merged` is always a complete, readable file. `conflicts` lists the
 /// structured form of each unresolved region.
 pub struct MergeResult {
-  pub merged: Array[String]
-  pub conflicts: Array[MergeConflict]
-  pub has_conflict: Bool
+  merged: Array[String]
+  conflicts: Array[MergeConflict]
+  has_conflict: Bool
 }
 
 /// Element-wise equality for two string arrays (used to decide whether a side

@@ -1,5 +1,5 @@
 {
   "name": "cli",
   "is-main": true,
-  "import": ["yuzhiblue/moon-diff/src/diff"]
+  "import": ["yuzhiblue/moon-diff/src/diff", "moonbitlang/core/env"]
 }

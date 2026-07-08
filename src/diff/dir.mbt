@@ -15,7 +15,7 @@ pub enum FileChange {
 
 /// The full set of changes between two trees.
 pub struct TreeDiff {
-  pub changes: Array[FileChange]
+  changes: Array[FileChange]
 }
 
 /// Builds a deterministic (path-sorted) file set from raw `(path, content)` pairs.

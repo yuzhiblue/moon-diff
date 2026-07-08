@@ -13,7 +13,7 @@ pub fn split_lines(s: String) -> Array[String] {
 /// A tiny linear integer map backed by an array of `(key, value)` pairs. It is
 /// used instead of `HashMap` so the package has **no external dependency** and
 /// compiles standalone. Lookups are O(n) but the maps here are tiny.
-fn imap_get[T: Eq](m: Array[(T, Int)], k: T) -> Int {
+fn[T: Eq] imap_get(m: Array[(T, Int)], k: T) -> Int {
   for p in m {
     if p.0 == k {
       return p.1
@@ -22,7 +22,7 @@ fn imap_get[T: Eq](m: Array[(T, Int)], k: T) -> Int {
   0
 }
 
-fn imap_inc[T: Eq](m: Array[(T, Int)], k: T) -> Unit {
+fn[T: Eq] imap_inc(m: Array[(T, Int)], k: T) -> Unit {
   for i = 0; i < m.length(); i = i + 1 {
     if m[i].0 == k {
       m[i] = (k, m[i].1 + 1)
@@ -32,7 +32,7 @@ fn imap_inc[T: Eq](m: Array[(T, Int)], k: T) -> Unit {
   m.push((k, 1))
 }
 
-fn imap_set[T: Eq](m: Array[(T, Int)], k: T, v: Int) -> Unit {
+fn[T: Eq] imap_set(m: Array[(T, Int)], k: T, v: Int) -> Unit {
   for i = 0; i < m.length(); i = i + 1 {
     if m[i].0 == k {
       m[i] = (k, v)

@@ -230,7 +230,7 @@ fn parse_array(s: String, pos: Int) -> Result[(Json, Int), String] {
     } else {
       return Err("expected ',' or ']' in array")
     }
-  } else {
+  } nobreak {
     return Err("unterminated array")
   }
 }
@@ -281,7 +281,7 @@ fn parse_object(s: String, pos: Int) -> Result[(Json, Int), String] {
     } else {
       return Err("expected ',' or '}' in object")
     }
-  } else {
+  } nobreak {
     return Err("unterminated object")
   }
 }
