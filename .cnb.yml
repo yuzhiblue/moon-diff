@@ -5,7 +5,7 @@ stages:
     image: 'ubuntu:22.04'
     pulls: true
     script:
-      - 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260703'
+      - 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- latest'
       - 'export PATH="$HOME/.moon/bin:$PATH"'
       - 'moon version'
       - 'moon build --target wasm-gc'
