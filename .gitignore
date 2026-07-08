@@ -11,3 +11,6 @@ docs/*.txt
 
 # IDE / agent data (project memory, not source)
 .codebuddy/
+
+# Local env / secrets (CI token template, never commit real tokens)
+.env

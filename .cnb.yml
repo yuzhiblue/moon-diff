@@ -5,8 +5,18 @@ stages:
     image: 'ubuntu:22.04'
     pulls: true
     script:
-      - 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260703'
+      - 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- latest'
       - 'export PATH="$HOME/.moon/bin:$PATH"'
       - 'moon version'
       - 'moon build --target wasm-gc'
       - 'moon test --target wasm-gc'
+
+  - name: mirror-to-github
+    image: 'ubuntu:22.04'
+    pulls: true
+    if: '[ "$CNB_EVENT" = "push" ]'
+    script:
+      - 'set -a; [ -f .env ] && . ./.env; set +a'
+      - 'git clone --mirror "https://cnb:$CNB_TOKEN@cnb.cool/$CNB_REPO_SLUG.git" /tmp/mirror'
+      - 'cd /tmp/mirror'
+      - 'git push "https://$GITHUB_TOKEN@github.com/yuzhiblue/moon-diff.git" "refs/heads/main:refs/heads/main"'
