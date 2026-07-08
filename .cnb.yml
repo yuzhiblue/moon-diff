@@ -16,6 +16,7 @@ stages:
     pulls: true
     if: '[ "$CNB_EVENT" = "push" ]'
     script:
+      - 'set -a; [ -f .env ] && . ./.env; set +a'
       - 'git clone --mirror "https://cnb:$CNB_TOKEN@cnb.cool/$CNB_REPO_SLUG.git" /tmp/mirror'
       - 'cd /tmp/mirror'
       - 'git push "https://$GITHUB_TOKEN@github.com/yuzhiblue/moon-diff.git" "refs/heads/main:refs/heads/main"'
