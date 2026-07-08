@@ -4,8 +4,8 @@
 test "identical sequences" {
   let a = ["a", "b", "c"]
   let d = diff(a, a)
-  assert_eq(to_old(d), a)
-  assert_eq(to_new(d), a)
+  assert_true(to_old(d) == a)
+  assert_true(to_new(d) == a)
   let mut non_equal = 0
   for c in d {
     match c {
@@ -20,38 +20,38 @@ test "simple insert" {
   let a = ["a", "b", "c"]
   let b = ["a", "b", "x", "c"]
   let d = diff(a, b)
-  assert_eq(to_new(d), b)
-  assert_eq(to_old(d), a)
+  assert_true(to_new(d) == b)
+  assert_true(to_old(d) == a)
 }
 
 test "simple delete" {
   let a = ["a", "b", "c", "d"]
   let b = ["a", "c", "d"]
   let d = diff(a, b)
-  assert_eq(to_new(d), b)
-  assert_eq(to_old(d), a)
+  assert_true(to_new(d) == b)
+  assert_true(to_old(d) == a)
 }
 
 test "replace block" {
   let a = ["1", "2", "3", "4", "5"]
   let b = ["1", "x", "y", "5"]
   let d = diff(a, b)
-  assert_eq(to_new(d), b)
-  assert_eq(to_old(d), a)
+  assert_true(to_new(d) == b)
+  assert_true(to_old(d) == a)
 }
 
 test "myers matches reconstruction" {
   let a = ["a", "b", "c", "d", "e", "f"]
   let b = ["a", "B", "c", "d", "x", "f"]
   let d = myers_diff(a, b)
-  assert_eq(to_new(d), b)
-  assert_eq(to_old(d), a)
+  assert_true(to_new(d) == b)
+  assert_true(to_old(d) == a)
 }
 
 test "myers vs lcs equivalence on reconstruction" {
   let a = ["the", "quick", "brown", "fox", "jumps"]
   let b = ["the", "slow", "brown", "fox", "sleeps"]
-  assert_eq(to_new(myers_diff(a, b)), to_new(diff(a, b)))
+  assert_true(to_new(myers_diff(a, b)) == to_new(diff(a, b)))
 }
 
 test "unified round trip" {
@@ -73,7 +73,7 @@ test "character diff" {
   let new = "sitting"
   let ch = diff_chars(old, new)
   assert_eq(changes_to_string(ch), new)
-  assert_eq(to_old(ch).join(""), old)
+  assert_true(to_old(ch).join("") == old)
 }
 
 test "token diff preserves whitespace" {
@@ -81,7 +81,7 @@ test "token diff preserves whitespace" {
   let b = "the dog sat on a mat"
   let ch = diff_tokens(a, b)
   assert_eq(changes_to_string(ch), b)
-  assert_eq(to_old(ch).join(""), a)
+  assert_true(to_old(ch).join("") == a)
 }
 
 test "reverse apply recovers old (patch -R)" {
@@ -223,8 +223,8 @@ test "all algorithms reconstruct" {
   ]
   for algo in algos {
     let ch = diff_algorithm(algo, a, b)
-    assert_eq(to_new(ch), b)
-    assert_eq(to_old(ch), a)
+    assert_true(to_new(ch) == b)
+    assert_true(to_old(ch) == a)
   }
 }
 
@@ -297,4 +297,3 @@ test "unified_to_html marks ins and del" {
   assert_eq(page.contains("<html>"), true)
   assert_eq(page.contains("class=\"ins\""), true)
 }
-
