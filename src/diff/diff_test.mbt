@@ -214,7 +214,13 @@ test "merge3 resolve ours drops markers" {
 test "all algorithms reconstruct" {
   let a = ["the", "quick", "brown", "fox"]
   let b = ["the", "slow", "red", "fox", "here"]
-  let algos = [LCS, Myers, Patience, Histogram, Linear]
+  let algos = [
+    diff_algorithm_by_name("lcs"),
+    diff_algorithm_by_name("myers"),
+    diff_algorithm_by_name("patience"),
+    diff_algorithm_by_name("histogram"),
+    diff_algorithm_by_name("linear"),
+  ]
   for algo in algos {
     let ch = diff_algorithm(algo, a, b)
     assert_eq!(to_new(ch), b)
@@ -239,10 +245,10 @@ test "parse_json ok and fail" {
 test "json round trip equal" {
   let j = match parse_json("{\"x\":[1,true,null]}") {
     Ok(v) => v
-    Err(_) => Null
+    Err(_) => json_null()
   }
   let s = json_to_string(j)
-  let j2 = match parse_json(s) { Ok(v) => v; Err(_) => Null }
+  let j2 = match parse_json(s) { Ok(v) => v; Err(_) => json_null() }
   assert_eq!(json_equal(j, j2), true)
 }
 

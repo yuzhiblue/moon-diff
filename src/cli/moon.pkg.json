@@ -1,5 +1,5 @@
 {
   "name": "cli",
   "is-main": true,
-  "import": ["diff", "env"]
+  "import": ["yuzhiblue/moon-diff/src/diff"]
 }

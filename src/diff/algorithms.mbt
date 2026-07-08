@@ -32,6 +32,18 @@ pub fn diff_algorithm(
   }
 }
 
+/// Resolves an algorithm name (e.g. `"lcs"`, `"myers"`) to a `DiffAlgorithm`.
+/// Unknown names fall back to the linear-space Hirschberg algorithm.
+pub fn diff_algorithm_by_name(name: String) -> DiffAlgorithm {
+  match name {
+    "lcs" => LCS
+    "myers" => Myers
+    "patience" => Patience
+    "histogram" => Histogram
+    _ => Linear
+  }
+}
+
 /// Returns `arr[s..e)` as a fresh array.
 fn slice(arr: Array[String], s: Int, e: Int) -> Array[String] {
   let out: Array[String] = []
@@ -246,24 +258,25 @@ pub fn histogram_diff(
 /// Linear-space minimal edit script (Hirschberg)
 /// ---------------------------------------------------------------------------
 
-/// Last row of the Levenshtein DP: `result[j]` is the edit distance between `a`
-/// and `b[0..j]`. Computed in `O(|a|·|b|)` time and `O(|b|)` space.
+/// Last column of the Levenshtein DP: `result[i]` is the edit distance between
+/// `a[0..i]` and `b`. Computed in `O(|a|·|b|)` time and `O(|a|)` space.
 fn edit_last_row(a: Array[String], b: Array[String]) -> Array[Int] {
+  let n = a.length()
   let m = b.length()
-  let mut prev: Array[Int] = Array::make(m + 1, 0)
-  for j = 0; j <= m; j = j + 1 {
-    prev[j] = j
+  let mut prev: Array[Int] = Array::make(n + 1, 0)
+  for i = 0; i <= n; i = i + 1 {
+    prev[i] = i
   }
-  for i = 0; i < a.length(); i = i + 1 {
-    let cur: Array[Int] = Array::make(m + 1, 0)
-    cur[0] = i + 1
-    for j = 0; j < m; j = j + 1 {
+  let mut cur: Array[Int] = Array::make(n + 1, 0)
+  for j = 0; j < m; j = j + 1 {
+    cur[0] = j + 1
+    for i = 0; i < n; i = i + 1 {
       if a[i] == b[j] {
-        cur[j + 1] = prev[j]
+        cur[i + 1] = prev[i]
       } else {
-        let del = prev[j + 1] + 1
-        let ins = cur[j] + 1
-        let sub = prev[j] + 1
+        let del = prev[i + 1] + 1
+        let ins = cur[i] + 1
+        let sub = prev[i] + 1
         let mut mn = del
         if ins < mn {
           mn = ins
@@ -271,26 +284,47 @@ fn edit_last_row(a: Array[String], b: Array[String]) -> Array[Int] {
         if sub < mn {
           mn = sub
         }
-        cur[j + 1] = mn
+        cur[i + 1] = mn
       }
     }
+    let tmp = prev
     prev = cur
+    cur = tmp
   }
   prev
 }
 
-/// `result[i]` is the edit distance between `a[i..]` and `b`, computed by
-/// reversing both sequences and reusing `edit_last_row`.
+/// `result[i]` is the edit distance between `a[i..]` and `b`. Computed in
+/// `O(|a|·|b|)` time and `O(|a|)` space via a backward DP.
 fn edit_last_row_rev(a: Array[String], b: Array[String]) -> Array[Int] {
-  let ra = reversed(a)
-  let rb = reversed(b)
-  let rlst = edit_last_row(ra, rb)
   let n = a.length()
-  let out: Array[Int] = Array::make(n + 1, 0)
+  let m = b.length()
+  // `next[i]` holds the distance between `a[i..]` and `b[(k + 1)..]`.
+  let mut next: Array[Int] = Array::make(n + 1, 0)
   for i = 0; i <= n; i = i + 1 {
-    out[i] = rlst[n - i]
+    next[i] = n - i
   }
-  out
+  let mut cur: Array[Int] = Array::make(n + 1, 0)
+  for k = m - 1; k >= 0; k = k - 1 {
+    cur[n] = m - k
+    for i = n - 1; i >= 0; i = i - 1 {
+      let del = cur[i + 1] + 1
+      let ins = next[i] + 1
+      let sub = next[i + 1] + (if a[i] == b[k] { 0 } else { 1 })
+      let mut mn = del
+      if ins < mn {
+        mn = ins
+      }
+      if sub < mn {
+        mn = sub
+      }
+      cur[i] = mn
+    }
+    let tmp = next
+    next = cur
+    cur = tmp
+  }
+  next
 }
 
 /// Recursive Hirschberg edit-script computation: split `b` in the middle, find

@@ -15,7 +15,7 @@
 /// single command-line argument. A backslash before any other character is
 /// preserved literally.
 fn unescape(s: String) -> String {
-  let out: String = ""
+  let mut out: String = ""
   let mut i = 0
   let n = s.length()
   while i < n {
@@ -60,17 +60,9 @@ fn parse_int(s: String, default: Int) -> Int {
   }
 }
 
-/// Maps an algorithm name to its `DiffAlgorithm` value (unknown names fall back
-/// to the linear-space Hirschberg algorithm).
-fn algo_of(s: String) -> DiffAlgorithm {
-  match s {
-    "lcs" => LCS
-    "myers" => Myers
-    "patience" => Patience
-    "histogram" => Histogram
-    _ => Linear
-  }
-}
+/// Maps an algorithm name to its `DiffAlgorithm` value via the `diff` package
+/// (enum constructors are not constructible cross-package, so the mapping lives
+/// in `yuzhiblue/moon-diff/src/diff`).
 
 /// Splits `args[start..]` into positional arguments plus the parsed flags
 /// `--algo <name>`, `--context <n>`, `--git`, `--ours`, `--theirs`.
@@ -135,10 +127,10 @@ fn cmd_diff(args: Array[String]) -> Unit {
   let old = unescape(pos[0])
   let new = unescape(pos[1])
   if git {
-    println(git_diff_text(old, new, "a", "b", context))
+    println(@diff.git_diff_text(old, new, "a", "b", context))
   } else {
-    let changes = diff_algorithm(algo_of(algo), split_lines(old), split_lines(new))
-    println(to_unified(changes, "a.txt", "b.txt", context))
+    let changes = @diff.diff_algorithm(@diff.diff_algorithm_by_name(algo), @diff.split_lines(old), @diff.split_lines(new))
+    println(@diff.to_unified(changes, "a.txt", "b.txt", context))
   }
 }
 
@@ -150,7 +142,7 @@ fn cmd_patch(args: Array[String]) -> Unit {
   }
   let old = unescape(pos[0])
   let patch = unescape(pos[1])
-  println(apply_unified(old, patch))
+  println(@diff.apply_unified(old, patch))
 }
 
 fn cmd_merge(args: Array[String]) -> Unit {
@@ -159,15 +151,15 @@ fn cmd_merge(args: Array[String]) -> Unit {
     println("merge: expected (BASE OURS THEIRS)")
     return
   }
-  let base = split_lines(unescape(pos[0]))
-  let ours = split_lines(unescape(pos[1]))
-  let theirs = split_lines(unescape(pos[2]))
-  let r = merge3(base, ours, theirs)
+  let base = @diff.split_lines(unescape(pos[0]))
+  let ours = @diff.split_lines(unescape(pos[1]))
+  let theirs = @diff.split_lines(unescape(pos[2]))
+  let r = @diff.merge3(base, ours, theirs)
   if resolve == "ours" {
-    let resolved = merge3_resolve_ours(r)
+    let resolved = @diff.merge3_resolve_ours(r)
     println(resolved.join("\n"))
   } else if resolve == "theirs" {
-    let resolved = merge3_resolve_theirs(r)
+    let resolved = @diff.merge3_resolve_theirs(r)
     println(resolved.join("\n"))
   } else {
     println(r.merged.join("\n"))
@@ -189,7 +181,7 @@ fn cmd_json(args: Array[String]) -> Unit {
   }
   let a = unescape(pos[0])
   let b = unescape(pos[1])
-  match json_diff_text(a, b) {
+  match @diff.json_diff_text(a, b) {
     Ok(s) => println(s)
     Err(e) => println("json error: " + e)
   }
@@ -201,21 +193,15 @@ fn cmd_algo(args: Array[String]) -> Unit {
     println("algo: expected two texts (OLD NEW)")
     return
   }
-  let a = split_lines(unescape(pos[0]))
-  let b = split_lines(unescape(pos[1]))
-  let algos: Array[(String, DiffAlgorithm)] = [
-    ("lcs", LCS),
-    ("myers", Myers),
-    ("patience", Patience),
-    ("histogram", Histogram),
-    ("linear", Linear),
-  ]
-  for (name, algo) in algos {
-    let ch = diff_algorithm(algo, a, b)
+  let a = @diff.split_lines(unescape(pos[0]))
+  let b = @diff.split_lines(unescape(pos[1]))
+  let names = ["lcs", "myers", "patience", "histogram", "linear"]
+  for name in names {
+    let ch = @diff.diff_algorithm(@diff.diff_algorithm_by_name(name), a, b)
     let mut d = 0
     for c in ch {
       match c {
-        Equal(_) => ()
+        @diff.Equal(_) => ()
         _ => d = d + 1
       }
     }
@@ -224,32 +210,26 @@ fn cmd_algo(args: Array[String]) -> Unit {
 }
 
 fn cmd_selftest() -> Unit {
-  // 1. reconstruction: to_new / to_old round-trip for every algorithm
+  // 1. reconstruction: @diff.to_new / @diff.to_old round-trip for every algorithm
   let a = ["x", "y", "z"]
   let b = ["x", "Y", "z", "w"]
-  let algos: Array[(String, DiffAlgorithm)] = [
-    ("lcs", LCS),
-    ("myers", Myers),
-    ("patience", Patience),
-    ("histogram", Histogram),
-    ("linear", Linear),
-  ]
-  for (name, algo) in algos {
-    let ch = diff_algorithm(algo, a, b)
-    if to_new(ch) != b {
+  let names = ["lcs", "myers", "patience", "histogram", "linear"]
+  for name in names {
+    let ch = @diff.diff_algorithm(@diff.diff_algorithm_by_name(name), a, b)
+    if @diff.to_new(ch) != b {
       println("selftest FAIL: " + name + " to_new")
       return
     }
-    if to_old(ch) != a {
+    if @diff.to_old(ch) != a {
       println("selftest FAIL: " + name + " to_old")
       return
     }
   }
   // 2. clean 3-way merge (non-overlapping edits)
-  let m = merge3(
-    split_lines("1\n2\n3"),
-    split_lines("1\n2\n3\n4"),
-    split_lines("0\n1\n2\n3"),
+  let m = @diff.merge3(
+    @diff.split_lines("1\n2\n3"),
+    @diff.split_lines("1\n2\n3\n4"),
+    @diff.split_lines("0\n1\n2\n3"),
   )
   if m.has_conflict {
     println("selftest FAIL: unexpected conflict")
@@ -260,7 +240,7 @@ fn cmd_selftest() -> Unit {
     return
   }
   // 3. json diff produces a non-empty patch for differing docs
-  match json_diff_text("{\"a\":1}", "{\"a\":2}") {
+  match @diff.json_diff_text("{\"a\":1}", "{\"a\":2}") {
     Ok(s) => {
       if s.length() < 2 {
         println("selftest FAIL: empty json patch")

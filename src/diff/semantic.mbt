@@ -13,6 +13,12 @@ pub enum Json {
   Obj(Array[(String, Json)])
 }
 
+/// Constructs the `Json` `Null` value. Enum constructors are not constructible
+/// cross-package, so this helper lets the test package obtain a `Null`.
+pub fn json_null() -> Json {
+  Null
+}
+
 /// A single RFC 6902 JSON Patch operation.
 pub enum JsonPatchOp {
   /// `{"op":"add","path":p,"value":v}`

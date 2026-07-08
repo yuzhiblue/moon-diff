@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 /// Splits a string on newline into an `Array[String]`.
-fn split_lines(s: String) -> Array[String] {
+pub fn split_lines(s: String) -> Array[String] {
   let out: Array[String] = []
   for line in s.split("\n") {
     out.push(line.to_owned())
