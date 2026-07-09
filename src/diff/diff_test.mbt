@@ -288,6 +288,69 @@ test "tree diff summary" {
   assert_eq(s.contains("files changed"), true)
 }
 
+test "tree diff add file with trailing newline round trips" {
+  let old_fs: Array[(String, String)] = []
+  let new_fs = [("new.txt", "hello\nworld\n")]
+  let patch = render_tree_patch(old_fs, new_fs, 50)
+  match apply_tree_patch(old_fs, patch) {
+    Ok(result) => {
+      let mut found = false
+      for p in result {
+        if p.0 == "new.txt" && p.1 == "hello\nworld\n" {
+          found = true
+        }
+      }
+      assert_eq(found, true)
+    }
+    Err(_) => assert_eq(1, 2)
+  }
+}
+
+test "new file patch has git-conformant zero old count" {
+  // A brand-new file has no old lines, so the hunk header must be
+  // `@@ -1,0 +1,N @@` (0 old lines). The naive `diff_lines("", nc)` produces a
+  // phantom trailing context line and yields a malformed `@@ -1,1 +1,0 @@`
+  // (claims 0 added lines yet has `+` lines) that `git apply` / `patch` reject.
+  let new_fs = [("new.txt", "abc\n")]
+  let patch = render_tree_patch([], new_fs, 50)
+  assert_eq(patch.contains("@@ -1,0 +1,"), true)
+  assert_eq(patch.contains("@@ -1,1 +1,0 @@"), false)
+}
+
+test "tree diff rename with content change round trips" {
+  let old_fs = [("old.txt", "line1\nline2\nline3\n")]
+  let new_fs = [("new.txt", "line1\nCHANGED\nline3\n")]
+  let patch = render_tree_patch(old_fs, new_fs, 50)
+  match apply_tree_patch(old_fs, patch) {
+    Ok(result) => {
+      let mut has_new = false
+      let mut has_old = false
+      for p in result {
+        if p.0 == "new.txt" && p.1 == "line1\nCHANGED\nline3\n" {
+          has_new = true
+        }
+        if p.0 == "old.txt" {
+          has_old = true
+        }
+      }
+      assert_eq(has_new, true)
+      assert_eq(has_old, false)
+    }
+    Err(_) => assert_eq(1, 2)
+  }
+}
+
+test "git blob hash matches git for utf8" {
+  // Reference values produced by `git hash-object` (SHA-1 of
+  // "blob <byte-length>\0<content>" in UTF-8). ASCII and CJK both match.
+  assert_eq(git_blob_hash("hello"), "b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0")
+  assert_eq(git_blob_hash("爱"), "f70fea1eca098e927a3ed1fb2a88ba067ba6e280")
+  assert_eq(
+    git_blob_hash("中文测试"),
+    "a412086f6f4388a176d5cc095212fd09969b018a",
+  )
+}
+
 test "unified_to_html marks ins and del" {
   let html = unified_to_html("a\nb", "a\nB", 3)
   assert_eq(html.contains("class=\"ins\""), true)

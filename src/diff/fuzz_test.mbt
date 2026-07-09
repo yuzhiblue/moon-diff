@@ -53,7 +53,7 @@ fn rng_pick(s: Array[Int], a: Array[String]) -> String {
 /// Mixed alphabet: Latin words, spaces, digits, and CJK characters — exercises
 /// both the ASCII and the Unicode code paths of the tokeniser.
 let fuzz_alpha: Array[String] = [
-  "a", "b", "c", " ", "x", "y", "z", " ", "the", " ", "我", "爱", "北",
+  "a", "b", "c", " ", "\n", "x", "y", "z", " ", "the", " ", "我", "爱", "北",
   "京", "的", "。", "！", "，", "1", "2",
 ]
 

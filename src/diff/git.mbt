@@ -115,31 +115,56 @@ fn to_hex(words: Array[Int]) -> String {
   out.join("")
 }
 
-/// SHA-1 (hex) of the raw bytes of `s`. ASCII-only safe
-/// (multibyte UTF-8 is not encoded byte-by-byte).
-pub fn sha1_hex(s: String) -> String {
-  let msg: Array[Int] = []
-  for i = 0; i < s.length(); i = i + 1 {
-    msg.push(s[i].to_int() & 0xff)
+/// Encodes a string as its UTF-8 byte sequence, returned as `Int`s in 0..255.
+/// A MoonBit `String` is indexed by *code point*, so each scalar must be
+/// expanded to its UTF-8 bytes manually (1 byte for ASCII, 2/3/4 bytes for a
+/// multibyte char). This is what makes `sha1_hex` / `git_blob_hash` correct for
+/// Chinese, Japanese, Korean and any non-ASCII text.
+fn utf8_bytes(s: String) -> Array[Int] {
+  let out: Array[Int] = []
+  let n = s.length()
+  for i = 0; i < n; i = i + 1 {
+    let cp = s[i].to_int()
+    if cp < 0x80 {
+      out.push(cp)
+    } else if cp < 0x800 {
+      out.push(0xc0 | (cp >> 6))
+      out.push(0x80 | (cp & 0x3f))
+    } else if cp < 0x10000 {
+      out.push(0xe0 | (cp >> 12))
+      out.push(0x80 | ((cp >> 6) & 0x3f))
+      out.push(0x80 | (cp & 0x3f))
+    } else {
+      out.push(0xf0 | (cp >> 18))
+      out.push(0x80 | ((cp >> 12) & 0x3f))
+      out.push(0x80 | ((cp >> 6) & 0x3f))
+      out.push(0x80 | (cp & 0x3f))
+    }
   }
-  let words = sha1(msg)
-  to_hex(words)
+  out
+}
+
+/// SHA-1 (hex) of the UTF-8 bytes of `s` (correct for multibyte text).
+pub fn sha1_hex(s: String) -> String {
+  to_hex(sha1(utf8_bytes(s)))
 }
 
 /// Computes the git *blob* SHA-1 of a text file's content, i.e. the hash used
-/// in a git `index` line. ASCII-only safe.
+/// in a git `index` line. The result matches `git` for **any** UTF-8 content,
+/// because the `blob <byte-length>\0` prefix uses the *byte* length and the
+/// content is fed byte-by-byte in UTF-8 (not code-point) order.
 pub fn git_blob_hash(text: String) -> String {
+  let bytes = utf8_bytes(text)
   let msg: Array[Int] = []
-  let prefix = "blob " + text.length().to_string()
+  let prefix = "blob " + bytes.length().to_string()
   for i = 0; i < prefix.length(); i = i + 1 {
     msg.push(prefix[i].to_int() & 0xff)
   }
   msg.push(0)
-  for i = 0; i < text.length(); i = i + 1 {
-    msg.push(text[i].to_int() & 0xff)
+  for b in bytes {
+    msg.push(b)
   }
-  let words = sha1(msg)
-  to_hex(words)
+  to_hex(sha1(msg))
 }
 
 /// Renders a git-style unified diff with a `diff --git` header and an `index`

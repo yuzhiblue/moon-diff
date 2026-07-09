@@ -196,14 +196,14 @@ fn render_change(
       "diff --git a/" + path + " b/" + path + "\n" +
       "new file mode 100644\n" +
       "index 0000000000000000000000000000000000000000.." + sha + "\n" +
-      to_unified(diff_lines("", nc), "/dev/null", "b/" + path, 3)
+      to_unified(diff([], split_lines(nc)), "/dev/null", "b/" + path, 3)
     }
     Removed(path, oc) => {
       let sha = git_blob_hash(oc)
       "diff --git a/" + path + " b/" + path + "\n" +
       "deleted file mode 100644\n" +
       "index " + sha + "..0000000000000000000000000000000000000000\n" +
-      to_unified(diff_lines(oc, ""), "a/" + path, "/dev/null", 3)
+      to_unified(diff(split_lines(oc), []), "a/" + path, "/dev/null", 3)
     }
     Renamed(from, to) => {
       let oc = match fileset_get(old_fs, from) {
