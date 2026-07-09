@@ -260,6 +260,11 @@ pub fn histogram_diff(
 
 /// Last column of the Levenshtein DP: `result[i]` is the edit distance between
 /// `a[0..i]` and `b`. Computed in `O(|a|·|b|)` time and `O(|a|)` space.
+/// Computes the *pure insertion/deletion* distance between `a[0..i]` and `b`
+/// (no substitution — a mismatch costs 2: one delete + one insert). This is the
+/// Levenshtein distance model that matches the edit scripts produced by `diff`
+/// (LCS), so Hirschberg's split picks the row that minimises `Delete + Insert`
+/// exactly, and the reconstructed script has the same edit distance as `diff`.
 fn edit_last_row(a: Array[String], b: Array[String]) -> Array[Int] {
   let n = a.length()
   let m = b.length()
@@ -276,15 +281,7 @@ fn edit_last_row(a: Array[String], b: Array[String]) -> Array[Int] {
       } else {
         let del = prev[i + 1] + 1
         let ins = cur[i] + 1
-        let sub = prev[i] + 1
-        let mut mn = del
-        if ins < mn {
-          mn = ins
-        }
-        if sub < mn {
-          mn = sub
-        }
-        cur[i + 1] = mn
+        cur[i + 1] = if del < ins { del } else { ins }
       }
     }
     let tmp = prev
@@ -308,17 +305,13 @@ fn edit_last_row_rev(a: Array[String], b: Array[String]) -> Array[Int] {
   for k = m - 1; k >= 0; k = k - 1 {
     cur[n] = m - k
     for i = n - 1; i >= 0; i = i - 1 {
-      let del = cur[i + 1] + 1
-      let ins = next[i] + 1
-      let sub = next[i + 1] + (if a[i] == b[k] { 0 } else { 1 })
-      let mut mn = del
-      if ins < mn {
-        mn = ins
+      if a[i] == b[k] {
+        cur[i] = next[i + 1]
+      } else {
+        let del = cur[i + 1] + 1
+        let ins = next[i] + 1
+        cur[i] = if del < ins { del } else { ins }
       }
-      if sub < mn {
-        mn = sub
-      }
-      cur[i] = mn
     }
     let tmp = next
     next = cur

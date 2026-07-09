@@ -114,6 +114,26 @@ pub fn[T: Eq] diff(a: Array[T], b: Array[T]) -> Array[Change[T]] {
 pub fn[T: Eq] myers_diff(a: Array[T], b: Array[T]) -> Array[Change[T]] {
   let n = a.length()
   let m = b.length()
+  // Degenerate base cases: when both inputs are empty the `v` array would have
+  // length 1 yet the loop below indexes `v[off + k + 1]`, going out of bounds.
+  // The single-sided cases are handled here too for clarity and correctness.
+  if n == 0 && m == 0 {
+    return []
+  }
+  if n == 0 {
+    let out: Array[Change[T]] = []
+    for j = 0; j < m; j = j + 1 {
+      out.push(Insert(b[j]))
+    }
+    return out
+  }
+  if m == 0 {
+    let out: Array[Change[T]] = []
+    for i = 0; i < n; i = i + 1 {
+      out.push(Delete(a[i]))
+    }
+    return out
+  }
   let max = n + m
   let off = max
   let v: Array[Int] = Array::make(2 * max + 1, 0)

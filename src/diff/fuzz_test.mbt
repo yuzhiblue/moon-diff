@@ -223,6 +223,18 @@ test "fuzz tree patch round trip" {
             ok = false
           }
         }
+        if !ok {
+          println("=== TREE ROUNDTRIP MISMATCH ===")
+          println(patch)
+          println("--- expected new_fs ---")
+          for p in new_fs {
+            println(p.0 + " => [" + p.1 + "]")
+          }
+          println("--- got result ---")
+          for q in result {
+            println(q.0 + " => [" + q.1 + "]")
+          }
+        }
         assert_true(ok)
       }
       Err(e) => {
