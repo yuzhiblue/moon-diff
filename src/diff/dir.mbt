@@ -387,7 +387,12 @@ pub fn apply_tree_patch(
         first_at = si
       }
     }
-    if first_at < 0 && rename_from.length() == 0 {
+    // A section without a `@@` hunk is normally skipped — but an *empty*
+    // added or removed file legitimately has no hunk (its `to_unified` body is
+    // empty). Such sections must still be processed so the file is added
+    // (with empty content) or removed. Renames without a hunk are covered by
+    // the `rename_from` check below.
+    if first_at < 0 && !is_new && !is_del && rename_from.length() == 0 {
       continue
     }
     let hunk: Array[String] = []

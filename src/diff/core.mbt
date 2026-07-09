@@ -3,23 +3,17 @@
 
 /// Splits a string on newline into an `Array[String]`.
 ///
-/// Uses *line* semantics (matching git and most text diff tools): a trailing
-/// newline does **not** introduce a phantom empty line, and an empty string
-/// yields an empty array rather than a single `""` element. This keeps the
-/// line model consistent so that `apply_unified` is a true inverse of
-/// `to_unified` even for empty contents.
+/// Note: this follows the classic GNU-`diff` line model where a *trailing
+/// newline is represented by a trailing empty line*. Concretely `""` yields
+/// `[""]` and `"a\n"` yields `["a", ""]`. This is intentional: it lets
+/// `apply_unified` round-trip text exactly, preserving the presence/absence of
+/// a final newline (a file `"X\n"` and one without a trailing newline are
+/// genuinely different and must not be collapsed). Do **not** drop the trailing
+/// empty element — doing so breaks `git diff text round trips`.
 pub fn split_lines(s: String) -> Array[String] {
-  if s.length() == 0 {
-    return []
-  }
   let out: Array[String] = []
   for line in s.split("\n") {
     out.push(line.to_owned())
-  }
-  // Drop a single trailing empty element produced by a trailing newline, e.g.
-  // `"a\n".split("\n")` may yield `["a", ""]` on some platforms.
-  if out.length() > 0 && out[out.length() - 1] == "" {
-    let _ = out.pop()
   }
   out
 }
