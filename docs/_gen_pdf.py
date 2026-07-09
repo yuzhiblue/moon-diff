@@ -55,7 +55,7 @@ bullets([
     '三路合并与多文件树 diff：merge3 实现 diff3 风格合并（含冲突标记与 ours/theirs 解析）；diff_trees / render_tree_patch / apply_tree_patch 生成并消费 Git 风格多文件补丁（含重命名检测）。',
     'Unicode 友好的文本比对：tokenize_unicode 按 CJK 字符 / 词 / 标点切分，使中文、日文、韩文逐字比对；ratio 基于 LCS 计算相似度（类似 Python difflib.ratio），可用于查重与排序。',
     '零依赖、纯 MoonBit 实现：基于泛型 Array[T]（T: Eq / Show），可对任意序列（行、词元、AST 节点）做差异计算。',
-    '工程完备：自带 GitHub Actions CI（moon build + moon test），54 项测试覆盖五算法重建一致性、最小编辑距离交叉验证、JSON / tree 补丁往返、Unicode tokenizer、ratio 边界、前后缀公共段剪枝、git diff --stat 摘要、忽略空格/大小写比较等；已发布到 MoonCakes（v0.2.0，mooncakes.io/package/yuzhiblue/moon-diff）。',
+    '工程完备：自带 GitHub Actions CI（moon build + moon test），54 项测试覆盖五算法重建一致性、最小编辑距离交叉验证、JSON / tree 补丁往返、Unicode tokenizer、ratio 边界、前后缀公共段剪枝、git diff --stat 摘要、忽略空格/大小写比较等；已发布到 MoonCakes（v0.2.1，mooncakes.io/package/yuzhiblue/moon-diff）。',
 ])
 
 sec('三、应用场景')

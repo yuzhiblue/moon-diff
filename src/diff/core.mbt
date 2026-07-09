@@ -536,7 +536,15 @@ pub fn ratio(a: String, b: String) -> Double {
 struct KeyedLine {
   key: String
   raw: String
-} derive(Eq)
+}
+
+/// Two lines are equal for diffing purposes iff their *normalized keys* match.
+/// `raw` is deliberately ignored here so that `diff_lines_ignore` can treat
+/// whitespace/case variants as identical while still rendering the original
+/// `raw` text in the resulting `Change`s.
+impl Eq for KeyedLine with equal(self, other) {
+  self.key == other.key
+}
 
 /// Normalizes `s` for whitespace/case-insensitive comparison. With `ignore_ws`,
 /// trailing whitespace is stripped and internal whitespace runs are collapsed to

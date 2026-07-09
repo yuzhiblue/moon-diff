@@ -413,9 +413,9 @@ test "prefix/suffix pruning preserves round-trip for all algorithms" {
 
 test "unified stat summary format" {
   let ch = diff_lines("a\nb\nc", "a\nB\nc\nd")
-  // one delete (b -> B) + one insert (d) == 2 changed lines
+  // b -> B is 1 delete + 1 insert, and d is 1 insert => 3 changed lines
   let s = to_unified_stat(ch, "f.txt", 40)
-  assert_eq(s, "f.txt | 2 +-")
+  assert_eq(s, "f.txt | 3 ++-")
   let none = diff_lines("x\ny", "x\ny")
   assert_eq(to_unified_stat(none, "g.txt", 40), "g.txt | 0")
 }
