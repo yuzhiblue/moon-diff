@@ -112,6 +112,8 @@ fn print_usage() -> Unit {
   println("  patch OLD PATCH                         apply a unified diff to OLD")
   println("  merge BASE OURS THEIRS [--ours|--theirs]  3-way merge (diff3 style)")
   println("  json A B                                RFC 6902 JSON Patch of A -> B")
+  println("  jsonapply DOC PATCH                     apply an RFC 6902 JSON Patch to DOC")
+  println("  ratio A B                               similarity ratio of A and B in [0,1]")
   println("  algo OLD NEW                            edit distance of all 5 algorithms")
   println("  selftest                                internal consistency checks")
   println("")
@@ -187,6 +189,28 @@ fn cmd_json(args: Array[String]) -> Unit {
   }
 }
 
+fn cmd_jsonapply(args: Array[String]) -> Unit {
+  let (pos, _, _, _, _) = parse_flags(args, 2)
+  if pos.length() < 2 {
+    println("jsonapply: expected (DOC PATCH)")
+    return
+  }
+  match @diff.apply_json_patch_text(unescape(pos[0]), unescape(pos[1])) {
+    Ok(s) => println(s)
+    Err(e) => println("json apply error: " + e)
+  }
+}
+
+fn cmd_ratio(args: Array[String]) -> Unit {
+  let (pos, _, _, _, _) = parse_flags(args, 2)
+  if pos.length() < 2 {
+    println("ratio: expected two texts (A B)")
+    return
+  }
+  let r = @diff.ratio(unescape(pos[0]), unescape(pos[1]))
+  println(r.to_string())
+}
+
 fn cmd_algo(args: Array[String]) -> Unit {
   let (pos, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
@@ -252,6 +276,30 @@ fn cmd_selftest() -> Unit {
       return
     }
   }
+  // 4. RFC 6902 apply round-trips a known document (closes the patch loop)
+  let doc1 =
+    match @diff.parse_json("{\"a\":1,\"b\":[1,2]}") {
+      Ok(d) => d
+      Err(_) => @diff.json_null()
+    }
+  let doc2 =
+    match @diff.parse_json("{\"a\":2,\"b\":[1,3]}") {
+      Ok(d) => d
+      Err(_) => @diff.json_null()
+    }
+  let ops = @diff.json_diff(doc1, doc2, "")
+  match @diff.apply_json_patch(doc1, ops) {
+    Ok(res) => {
+      if !@diff.json_equal(res, doc2) {
+        println("selftest FAIL: json apply round-trip mismatch")
+        return
+      }
+    }
+    Err(_) => {
+      println("selftest FAIL: json apply error")
+      return
+    }
+  }
   println("selftest: all checks passed")
 }
 
@@ -267,6 +315,8 @@ fn main {
     "patch" => cmd_patch(args)
     "merge" => cmd_merge(args)
     "json" => cmd_json(args)
+    "jsonapply" => cmd_jsonapply(args)
+    "ratio" => cmd_ratio(args)
     "algo" => cmd_algo(args)
     "selftest" => cmd_selftest()
     _ => print_usage()

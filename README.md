@@ -31,10 +31,19 @@ and a **multi-file tree diff** — all with zero external dependencies.
 - **Verified SHA-1** — `sha1_hex` is a from-scratch, fully tested implementation.
 - **Token & character-level diff** — `diff_tokens` (word granularity, whitespace preserved) and
   `diff_chars` (single-character), plus `word_diff` / `word_diff_html` for inline highlighting.
+- **Unicode-aware tokeniser** — `tokenize_unicode` / `diff_tokens_unicode` split text into
+  per-CJK-character and per-word tokens (ASCII whitespace preserved), so Chinese / Japanese /
+  Korean diffs are compared character-by-character instead of as one opaque blob.
+  `word_diff_unicode` / `word_diff_html_unicode` give inline highlighting for such text.
+- **Similarity `ratio`** — `ratio(a, b)` returns a `Double` in `[0, 1]` (LCS-based, like
+  Python's `difflib.ratio`) for ranking / near-duplicate detection — works on CJK text too.
 - **3-way merge** — `merge3` implements the classic *diff3* region strategy with conflict
   markers and `git merge -X ours/theirs` style resolvers.
 - **Semantic JSON diff** — `json_diff_text` parses two JSON documents and emits an
   [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) JSON Patch (object order-independent).
+- **JSON Patch *apply*** — `apply_json_patch` / `apply_json_patch_text` apply an RFC 6902 patch
+  (add / remove / replace; objects & arrays; the `-` end-of-array token and JSON-Pointer `~` escape
+  handling) back to a document, closing the round-trip so a patch is fully reversible.
 - **Multi-file tree diff** — `diff_trees` / `render_tree_patch` / `apply_tree_patch` produce and
   consume Git-style multi-file patches with rename detection.
 - **Generic & zero-dependency** — works on any `T` with `Eq` (and `Show` for rendering).
@@ -130,6 +139,8 @@ moon run cli -- diff "line1\nline2" "line1\nLINE2"
 moon run cli -- patch "line1\nline2" "$(cat patch.txt)"     # patch text as one arg
 moon run cli -- merge "base" "ours" "theirs" --ours
 moon run cli -- json '{"a":1}' '{"a":2}'
+moon run cli -- jsonapply '{"a":1}' '[{"op":"replace","path":"/a","value":2}]'   # apply a JSON Patch
+moon run cli -- ratio "我爱北京" "我爱南京"                  # similarity in [0,1]
 moon run cli -- algo "old text" "new text"                  # edit distance of all 5 algorithms
 moon run cli -- selftest                                   # internal consistency checks
 ```
@@ -146,6 +157,11 @@ moon run cli -- selftest                                   # internal consistenc
 | `diff_chars` | `fn diff_chars(String, String) -> Array[Change[String]]` | character-level diff |
 | `diff_tokens` | `fn diff_tokens(String, String) -> Array[Change[String]]` | word/token-level diff (whitespace preserved) |
 | `tokenize` | `fn tokenize(String) -> Array[String]` | split into alternating word / whitespace runs |
+| `tokenize_unicode` | `fn tokenize_unicode(String) -> Array[String]` | Unicode-aware split (per-CJK-char, per-word, per-punct, whitespace runs) |
+| `diff_tokens_unicode` | `fn diff_tokens_unicode(String, String) -> Array[Change[String]]` | Unicode-token diff (Chinese/Japanese/Korean friendly) |
+| `word_diff_unicode` | `fn word_diff_unicode(String, String) -> String` | intra-line highlight with `[-x-]{+y+}` (Unicode-aware) |
+| `word_diff_html_unicode` | `fn word_diff_html_unicode(String, String) -> (String, String)` | `<del>`/`<ins>` HTML highlighting (Unicode-aware) |
+| `ratio` | `fn ratio(String, String) -> Double` | similarity in `[0,1]` (LCS of code points, like `difflib.ratio`) |
 | `changes_to_string` | `fn changes_to_string(Array[Change[String]]) -> String` | reconstruct a `String` from a change list |
 | `to_unified` | `fn[T: Show] to_unified(Array[Change[T]], String, String, Int) -> String` | render a unified diff (`context` = lines of context) |
 | `apply_unified` | `fn apply_unified(String, String) -> String` | apply a unified diff to the old text |
@@ -173,6 +189,8 @@ moon run cli -- selftest                                   # internal consistenc
 | `json_diff` | `fn json_diff(Json, Json, String) -> Array[JsonPatchOp]` | RFC 6902 diff |
 | `json_patch_to_string` | `fn json_patch_to_string(Array[JsonPatchOp]) -> String` | render a JSON Patch document |
 | `json_diff_text` | `fn json_diff_text(String, String) -> Result[String, String]` | JSON Patch of A → B |
+| `apply_json_patch` | `fn apply_json_patch(Json, Array[JsonPatchOp]) -> Result[Json, String]` | apply an RFC 6902 patch to a `Json` value |
+| `apply_json_patch_text` | `fn apply_json_patch_text(String, String) -> Result[String, String]` | apply an RFC 6902 patch (doc + patch as text) |
 | `diff_trees` | `fn diff_trees(Array[(String,String)], Array[(String,String)], Int) -> TreeDiff` | diff two file trees |
 | `render_tree_patch` | `fn render_tree_patch(Array[(String,String)], Array[(String,String)], Int) -> String` | Git multi-file patch |
 | `apply_tree_patch` | `fn apply_tree_patch(Array[(String,String)], String) -> Result[Array[(String,String)], String]` | apply a multi-file patch |
@@ -215,7 +233,7 @@ where `n, m` are the sequence lengths and `D` is the edit distance.
 
 ```bash
 moon build                  # build all packages (default + bench + cli)
-moon test                   # run the test suite (30 cases)
+moon test                   # run the test suite (40+ cases)
 moon run cli -- selftest    # run the CLI's internal consistency checks
 moon run --release src/bench  # run the benchmark harness (MoonBit side)
 ```
@@ -228,7 +246,7 @@ CI runs `moon build` and `moon test` on every push/PR via `.github/workflows/ci.
 moon.mod.json
 src/diff/
   types.mbt      # Change enum: Equal / Delete / Insert
-  core.mbt       # lcs_table, diff, myers_diff, to_new / to_old, diff_lines, diff_chars, diff_tokens, tokenize, word_diff, word_diff_html
+  core.mbt       # lcs_table, diff, myers_diff, to_new / to_old, diff_lines, diff_chars, diff_tokens, tokenize, word_diff, word_diff_html, tokenize_unicode, diff_tokens_unicode, word_diff_unicode, word_diff_html_unicode, ratio, codepoints
   unified.mbt    # to_unified, apply_unified, apply_unified_fuzzy, apply_unified_reverse, reverse_unified
   git.mbt        # sha1_hex, git_blob_hash, git_diff_text, binary_diff
   merge.mbt      # merge3, merge3_text, merge3_count, resolve_ours / resolve_theirs
@@ -258,6 +276,10 @@ docs/
 - [x] Five diff algorithms (LCS, Myers, Patience, Histogram, linear-space Hirschberg).
 - [x] 3-way merge with conflict markers and `ours`/`theirs` resolvers.
 - [x] Semantic JSON diff (RFC 6902 JSON Patch).
+- [x] JSON Patch **apply** (`apply_json_patch` / `apply_json_patch_text`, add/remove/replace, arrays & objects) — closes the RFC 6902 round-trip.
+- [x] Unicode-aware tokeniser (`tokenize_unicode` / `diff_tokens_unicode` / `word_diff_unicode`) — Chinese / Japanese / Korean diffs.
+- [x] Similarity `ratio(a, b)` (LCS-based, like `difflib.ratio`).
+- [x] Property / fuzz tests (`fuzz_test.mbt`: all 5 algorithms reconstruct; minimal-distance agreement; JSON & tree patch round-trips; Unicode tokeniser; `ratio` bounds).
 - [x] Multi-file tree diff with rename detection (Git-style patch apply).
 - [x] Command-line front-end / runnable example (`src/cli`).
 - [ ] `moonbitlang/x/fs`-backed file I/O for the CLI (currently argument/stdin based).

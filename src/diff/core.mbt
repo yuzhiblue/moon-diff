@@ -318,3 +318,186 @@ pub fn word_diff_html(old: String, new: String) -> (String, String) {
   }
   (old_out, new_out)
 }
+
+// ===================== Unicode-aware tokeniser & similarity =====================
+
+/// Returns the Unicode code points of `s` as `Int`s. In MoonBit a `String` is
+/// indexed by code point, so `s[i].to_int()` already yields the scalar value of
+/// the i-th character (this is the same convention used by `chars_of`,
+/// `parse_string` and `substring`). Collecting them lets the Unicode-aware
+/// tokeniser and `ratio` treat Chinese / Japanese / Korean text as real
+/// characters instead of opaque bytes.
+fn codepoints(s: String) -> Array[Int] {
+  let out: Array[Int] = []
+  let n = s.length()
+  for i = 0; i < n; i = i + 1 {
+    out.push(s[i].to_int())
+  }
+  out
+}
+
+/// True for Unicode whitespace (ASCII whitespace plus a few common Unicode
+/// spaces, e.g. the ideographic space U+3000).
+fn cp_is_space(cp: Int) -> Bool {
+  cp == 0x20 || cp == 0x09 || cp == 0x0a || cp == 0x0d ||
+  cp == 0x00a0 || cp == 0x1680 || cp == 0x3000 || cp == 0x2028 ||
+  cp == 0x2029 || cp == 0x205f || cp == 0x3000
+}
+
+/// True for CJK / Kana / Hangul / Bopomofo code points — these are diffed
+/// *per character* (there are no spaces inside a Han word).
+fn cp_is_cjk(cp: Int) -> Bool {
+  (cp >= 0x4e00 && cp <= 0x9fff) || // CJK Unified Ideographs
+  (cp >= 0x3400 && cp <= 0x4dbf) || // CJK Extension A
+  (cp >= 0x20000 && cp <= 0x2fa1f) || // CJK Extensions B+
+  (cp >= 0x3040 && cp <= 0x30ff) || // Hiragana + Katakana
+  (cp >= 0xac00 && cp <= 0xd7a3) || // Hangul Syllables
+  (cp >= 0x1100 && cp <= 0x115f) || // Hangul Jamo
+  (cp >= 0x3130 && cp <= 0x318f) || // Hangul compatibility Jamo
+  (cp >= 0x3100 && cp <= 0x312f) // Bopomofo
+}
+
+/// True for punctuation (ASCII punctuation plus CJK / fullwidth punctuation).
+/// Each punctuation mark becomes its own token so `Hello, world!` diffs the
+/// comma and the exclamation separately.
+fn cp_is_punct(cp: Int) -> Bool {
+  (cp >= 0x21 && cp <= 0x2f) || (cp >= 0x3a && cp <= 0x40) ||
+  (cp >= 0x5b && cp <= 0x60) || (cp >= 0x7b && cp <= 0x7e) ||
+  (cp >= 0x3000 && cp <= 0x303f) || (cp >= 0xff00 && cp <= 0xffef)
+}
+
+/// A Unicode-aware tokeniser. Unlike `tokenize` (which treats everything that
+/// is not ASCII whitespace as one big token, breaking Chinese entirely), this
+/// splits text into:
+///
+/// * whitespace runs (preserved, like `tokenize`),
+/// * per-CJK-character tokens (so `我爱北京` → `["我","爱","北","京"]`),
+/// * per-punctuation tokens,
+/// * runs of "word" characters (Latin letters / digits / etc.).
+///
+/// ```moonbit
+/// tokenize_unicode("我爱北京")   // => ["我", "爱", "北", "京"]
+/// tokenize_unicode("Hello, 世界!") // => ["Hello", ",", " ", "世", "界", "!"]
+/// ```
+pub fn tokenize_unicode(s: String) -> Array[String] {
+  let cps = codepoints(s)
+  let n = cps.length()
+  let toks: Array[String] = []
+  if n == 0 {
+    return toks
+  }
+  let mut buf = ""
+  let mut mode = 0 // 0 = empty, 1 = space, 2 = word, 3 = single (cjk/punct)
+  let mut i = 0
+  while i < n {
+    let cp = cps[i]
+    if cp_is_space(cp) {
+      if mode != 1 {
+        if mode != 0 {
+          toks.push(buf)
+        }
+        buf = ""
+        mode = 1
+      }
+      buf = buf + String::from_array([cp.unsafe_to_char()])
+      i = i + 1
+    } else if cp_is_cjk(cp) || cp_is_punct(cp) {
+      if mode != 0 {
+        toks.push(buf)
+        buf = ""
+      }
+      toks.push(String::from_array([cp.unsafe_to_char()]))
+      mode = 0
+      i = i + 1
+    } else {
+      if mode != 2 {
+        if mode != 0 {
+          toks.push(buf)
+          buf = ""
+        }
+        mode = 2
+      }
+      buf = buf + String::from_array([cp.unsafe_to_char()])
+      i = i + 1
+    }
+  }
+  if mode != 0 {
+    toks.push(buf)
+  }
+  toks
+}
+
+/// Diffs two strings at **Unicode-token** granularity: whitespace-preserving,
+/// per-CJK-character, per-punctuation. This is the Chinese/Japanese/Korean
+/// friendly counterpart of `diff_tokens`.
+///
+/// ```moonbit
+/// diff_tokens_unicode("我爱北京", "我爱南京")  // only 北→南 differs
+/// ```
+pub fn diff_tokens_unicode(old: String, new: String) -> Array[Change[String]] {
+  diff(tokenize_unicode(old), tokenize_unicode(new))
+}
+
+/// Like `word_diff`, but built on the Unicode-aware tokeniser so intra-line
+/// highlighting works for Chinese / Japanese / Korean text.
+///
+/// ```moonbit
+/// word_diff_unicode("我爱北京", "我爱南京") // => "我爱[-北-]{+南+}京"
+/// ```
+pub fn word_diff_unicode(old: String, new: String) -> String {
+  let ch = diff_tokens_unicode(old, new)
+  let mut out = ""
+  for c in ch {
+    match c {
+      Equal(t) => out = out + t
+      Delete(t) => out = out + "[-" + t + "-]"
+      Insert(t) => out = out + "{+" + t + "+}"
+    }
+  }
+  out
+}
+
+/// Like `word_diff_html`, but built on the Unicode-aware tokeniser.
+///
+/// ```moonbit
+/// word_diff_html_unicode("我爱北京", "我爱南京")
+/// // => ("我爱<del>北</del>京", "我爱<ins>南</ins>京")
+/// ```
+pub fn word_diff_html_unicode(old: String, new: String) -> (String, String) {
+  let ch = diff_tokens_unicode(old, new)
+  let mut old_out = ""
+  let mut new_out = ""
+  for c in ch {
+    match c {
+      Equal(t) => {
+        old_out = old_out + t
+        new_out = new_out + t
+      }
+      Delete(t) => old_out = old_out + "<del>" + t + "</del>"
+      Insert(t) => new_out = new_out + "<ins>" + t + "</ins>"
+    }
+  }
+  (old_out, new_out)
+}
+
+/// Similarity ratio of two strings in `[0, 1]`, defined as `2·M / (|a| + |b|)`
+/// where `M` is the length of the longest common subsequence of their Unicode
+/// code points. `1.0` means identical, `0.0` means disjoint. This mirrors
+/// Python's `difflib.SequenceMatcher.ratio` and is handy for ranking /
+/// near-duplicate detection (works on Chinese text too).
+///
+/// ```moonbit
+/// ratio("hello", "hullo")  // ~0.8
+/// ratio("我爱北京", "我爱南京") // ~0.75
+/// ```
+pub fn ratio(a: String, b: String) -> Double {
+  let ca = codepoints(a)
+  let cb = codepoints(b)
+  let la = ca.length()
+  let lb = cb.length()
+  if la == 0 && lb == 0 {
+    return 1.0
+  }
+  let m = lcs_table(ca, cb)[la][lb]
+  (2.0 * m.to_double()) / ((la + lb).to_double())
+}
