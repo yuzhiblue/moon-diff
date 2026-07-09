@@ -47,8 +47,9 @@ and a **multi-file tree diff** — all with zero external dependencies.
 - **Multi-file tree diff** — `diff_trees` / `render_tree_patch` / `apply_tree_patch` produce and
   consume Git-style multi-file patches with rename detection.
 - **Generic & zero-dependency** — works on any `T` with `Eq` (and `Show` for rendering).
-- **Command-line tool** — `src/cli` is a runnable front-end (`diff`/`patch`/`merge`/`json`/`algo`)
-  that doubles as the project's runnable example.
+  - **Command-line tool** — `src/cli` is a runnable front-end
+    (`diff` / `patch` / `merge` / `json` / `jsonapply` / `ratio` / `algo` / `selftest`)
+    that doubles as the project's runnable example.
 
 ## Install
 
@@ -251,11 +252,11 @@ src/diff/
   git.mbt        # sha1_hex, git_blob_hash, git_diff_text, binary_diff
   merge.mbt      # merge3, merge3_text, merge3_count, resolve_ours / resolve_theirs
   algorithms.mbt # DiffAlgorithm, diff_algorithm, patience_diff, histogram_diff, diff_linear
-  semantic.mbt   # JSON parser, json_equal, json_diff (RFC 6902), json_diff_text
+  semantic.mbt   # JSON parser, json_equal, json_to_string, json_diff (RFC 6902), json_patch_to_string, json_diff_text, apply_json_patch / apply_json_patch_text
   dir.mbt        # diff_trees, render_tree_patch, apply_tree_patch, tree_diff_summary
   diff_test.mbt  # test blocks (run with `moon test`)
 src/cli/
-  main.mbt       # command-line front-end (diff / patch / merge / json / algo / selftest)
+  main.mbt       # command-line front-end (diff / patch / merge / json / jsonapply / ratio / algo / selftest)
   moon.pkg.json
 src/bench/
   bench.mbt      # benchmark harness (RESULT-line protocol)
