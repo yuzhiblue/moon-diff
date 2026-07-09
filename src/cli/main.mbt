@@ -60,21 +60,21 @@ fn parse_int(s: String, default: Int) -> Int {
   }
 }
 
-/// Maps an algorithm name to its `DiffAlgorithm` value via the `diff` package
-/// (enum constructors are not constructible cross-package, so the mapping lives
-/// in `yuzhiblue/moon-diff/src/diff`).
-
 /// Splits `args[start..]` into positional arguments plus the parsed flags
-/// `--algo <name>`, `--context <n>`, `--git`, `--ours`, `--theirs`.
+/// `--algo <name>`, `--context <n>`, `--git`, `--stat`, `--ignore-whitespace`,
+/// `--ignore-case`, `--ours`, `--theirs`.
 fn parse_flags(
   args: Array[String],
   start: Int
-) -> (Array[String], String, Int, Bool, String) {
+) -> (Array[String], String, Int, Bool, String, Bool, Bool, Bool) {
   let pos: Array[String] = []
   let mut algo = "linear"
   let mut context = 3
   let mut git = false
   let mut resolve = ""
+  let mut stat = false
+  let mut ignore_ws = false
+  let mut ignore_case = false
   let mut i = start
   while i < args.length() {
     let a = args[i]
@@ -87,6 +87,15 @@ fn parse_flags(
     } else if a == "--git" {
       git = true
       i = i + 1
+    } else if a == "--stat" {
+      stat = true
+      i = i + 1
+    } else if a == "--ignore-whitespace" {
+      ignore_ws = true
+      i = i + 1
+    } else if a == "--ignore-case" {
+      ignore_case = true
+      i = i + 1
     } else if a == "--ours" {
       resolve = "ours"
       i = i + 1
@@ -98,7 +107,7 @@ fn parse_flags(
       i = i + 1
     }
   }
-  (pos, algo, context, git, resolve)
+  (pos, algo, context, git, resolve, stat, ignore_ws, ignore_case)
 }
 
 fn print_usage() -> Unit {
@@ -108,7 +117,8 @@ fn print_usage() -> Unit {
   println("")
   println("commands:")
   println("  diff OLD NEW [--algo lcs|myers|patience|histogram|linear]")
-  println("              [--context N] [--git]   unified (or git) diff of two texts")
+  println("              [--context N] [--git] [--stat] [--ignore-whitespace]")
+  println("              [--ignore-case]   unified (or git/stat) diff of two texts")
   println("  patch OLD PATCH                         apply a unified diff to OLD")
   println("  merge BASE OURS THEIRS [--ours|--theirs]  3-way merge (diff3 style)")
   println("  json A B                                RFC 6902 JSON Patch of A -> B")
@@ -118,10 +128,11 @@ fn print_usage() -> Unit {
   println("  selftest                                internal consistency checks")
   println("")
   println("multi-line arguments use \\n (newline) and \\t (tab) escapes.")
+  println("--ignore-whitespace/--ignore-case apply to `diff` and `diff --stat`.")
 }
 
 fn cmd_diff(args: Array[String]) -> Unit {
-  let (pos, algo, context, git, _) = parse_flags(args, 2)
+  let (pos, algo, context, git, _, stat, iws, iwc) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("diff: expected two texts (OLD NEW)")
     return
@@ -131,13 +142,28 @@ fn cmd_diff(args: Array[String]) -> Unit {
   if git {
     println(@diff.git_diff_text(old, new, "a", "b", context))
   } else {
-    let changes = @diff.diff_algorithm(@diff.diff_algorithm_by_name(algo), @diff.split_lines(old), @diff.split_lines(new))
-    println(@diff.to_unified(changes, "a.txt", "b.txt", context))
+    let old_lines = @diff.split_lines(old)
+    let new_lines = @diff.split_lines(new)
+    let changed =
+      if iws || iwc {
+        @diff.diff_lines_ignore(old, new, iws, iwc)
+      } else {
+        @diff.diff_algorithm(
+          @diff.diff_algorithm_by_name(algo),
+          old_lines,
+          new_lines,
+        )
+      }
+    if stat {
+      println(@diff.to_unified_stat(changed, "a.txt", 40))
+    } else {
+      println(@diff.to_unified(changed, "a.txt", "b.txt", context))
+    }
   }
 }
 
 fn cmd_patch(args: Array[String]) -> Unit {
-  let (pos, _, _, _, _) = parse_flags(args, 2)
+  let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("patch: expected (OLD PATCH)")
     return
@@ -148,7 +174,7 @@ fn cmd_patch(args: Array[String]) -> Unit {
 }
 
 fn cmd_merge(args: Array[String]) -> Unit {
-  let (pos, _, _, _, resolve) = parse_flags(args, 2)
+  let (pos, _, _, _, resolve, _, _, _) = parse_flags(args, 2)
   if pos.length() < 3 {
     println("merge: expected (BASE OURS THEIRS)")
     return
@@ -176,7 +202,7 @@ fn cmd_merge(args: Array[String]) -> Unit {
 }
 
 fn cmd_json(args: Array[String]) -> Unit {
-  let (pos, _, _, _, _) = parse_flags(args, 2)
+  let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("json: expected two JSON texts (A B)")
     return
@@ -190,7 +216,7 @@ fn cmd_json(args: Array[String]) -> Unit {
 }
 
 fn cmd_jsonapply(args: Array[String]) -> Unit {
-  let (pos, _, _, _, _) = parse_flags(args, 2)
+  let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("jsonapply: expected (DOC PATCH)")
     return
@@ -202,7 +228,7 @@ fn cmd_jsonapply(args: Array[String]) -> Unit {
 }
 
 fn cmd_ratio(args: Array[String]) -> Unit {
-  let (pos, _, _, _, _) = parse_flags(args, 2)
+  let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("ratio: expected two texts (A B)")
     return
@@ -212,7 +238,7 @@ fn cmd_ratio(args: Array[String]) -> Unit {
 }
 
 fn cmd_algo(args: Array[String]) -> Unit {
-  let (pos, _, _, _, _) = parse_flags(args, 2)
+  let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("algo: expected two texts (OLD NEW)")
     return

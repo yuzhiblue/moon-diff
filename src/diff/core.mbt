@@ -529,3 +529,104 @@ pub fn ratio(a: String, b: String) -> Double {
   let m = lcs_table(ca, cb)[la][lb]
   (2.0 * m.to_double()) / ((la + lb).to_double())
 }
+
+/// A line paired with a *normalized comparison key*. Two `KeyedLine`s compare
+/// equal when their keys match, but the original `raw` text is kept so that a
+/// normalized diff still renders (and patches) the real, un-normalized content.
+struct KeyedLine {
+  key: String
+  raw: String
+} derive(Eq)
+
+/// Normalizes `s` for whitespace/case-insensitive comparison. With `ignore_ws`,
+/// trailing whitespace is stripped and internal whitespace runs are collapsed to
+/// a single space; with `ignore_case`, ASCII letters are lowercased.
+fn normalize_for_diff(s: String, ignore_ws: Bool, ignore_case: Bool) -> String {
+  let mut t = s
+  if ignore_case {
+    t = lowercase(t)
+  }
+  if ignore_ws {
+    t = collapse_ws(t)
+  }
+  t
+}
+
+/// Lowercases a string's ASCII letters (A-Z -> a-z). Implemented manually to
+/// avoid depending on a specific `String` casing API.
+fn lowercase(s: String) -> String {
+  let cps = codepoints(s)
+  let out: Array[String] = []
+  for cp in cps {
+    if cp >= 0x41 && cp <= 0x5a {
+      out.push(String::from_array([(cp + 0x20).unsafe_to_char()]))
+    } else {
+      out.push(String::from_array([cp.unsafe_to_char()]))
+    }
+  }
+  out.join("")
+}
+
+/// Collapses runs of whitespace to a single space and trims leading/trailing
+/// whitespace.
+fn collapse_ws(s: String) -> String {
+  let cps = codepoints(s)
+  let out: Array[String] = []
+  let mut was_space = false
+  let mut started = false
+  for cp in cps {
+    if cp_is_space(cp) {
+      if started {
+        was_space = true
+      }
+    } else {
+      if was_space {
+        out.push(" ")
+      }
+      out.push(String::from_array([cp.unsafe_to_char()]))
+      was_space = false
+      started = true
+    }
+  }
+  out.join("")
+}
+
+/// Diffs two texts line-by-line, optionally ignoring whitespace and/or letter
+/// case (mirrors `git diff --ignore-all-space` / `--ignore-case`). The returned
+/// `Change[String]` list carries the *original* line text, so callers such as
+/// `to_unified` and `apply_unified` operate on real content.
+///
+/// ```moonbit
+/// diff_lines_ignore("a B", "A  b", true, true)  // => [Equal("a B")]
+/// ```
+pub fn diff_lines_ignore(
+  old: String,
+  new: String,
+  ignore_ws: Bool,
+  ignore_case: Bool
+) -> Array[Change[String]] {
+  let a = split_lines(old)
+  let b = split_lines(new)
+  let ka: Array[KeyedLine] = []
+  for x in a {
+    ka.push(
+      KeyedLine::{ key: normalize_for_diff(x, ignore_ws, ignore_case), raw: x },
+    )
+  }
+  let kb: Array[KeyedLine] = []
+  for x in b {
+    kb.push(
+      KeyedLine::{ key: normalize_for_diff(x, ignore_ws, ignore_case), raw: x },
+    )
+  }
+  let ch = diff(ka, kb)
+  let out: Array[Change[String]] = []
+  for c in ch {
+    match c {
+      Equal(x) => out.push(Equal(x.raw))
+      Delete(x) => out.push(Delete(x.raw))
+      Insert(x) => out.push(Insert(x.raw))
+    }
+  }
+  out
+}

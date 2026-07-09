@@ -18,7 +18,48 @@ pub enum DiffAlgorithm {
 
 /// Dispatches to the requested diff algorithm. Every branch returns a valid
 /// edit script over the two line sequences.
+///
+/// Before dispatching, the common prefix and suffix of `a` and `b` are trimmed
+/// off (a standard optimization used by `GNU diff` and `git`): those lines are
+/// always `Equal`, so skipping them lets the underlying algorithm run only on
+/// the usually much smaller middle section without changing the result.
 pub fn diff_algorithm(
+  algo: DiffAlgorithm,
+  a: Array[String],
+  b: Array[String]
+) -> Array[Change[String]] {
+  let n = a.length()
+  let m = b.length()
+  // Skip the common prefix.
+  let mut p = 0
+  while p < n && p < m && a[p] == b[p] {
+    p = p + 1
+  }
+  // Skip the common suffix (between the prefix and the ends).
+  let mut s = 0
+  while s < n - p && s < m - p && a[n - 1 - s] == b[m - 1 - s] {
+    s = s + 1
+  }
+  if p == 0 && s == 0 {
+    return diff_algorithm_inner(algo, a, b)
+  }
+  let mid = diff_algorithm_inner(algo, slice(a, p, n - s), slice(b, p, m - s))
+  let out: Array[Change[String]] = []
+  for i = 0; i < p; i = i + 1 {
+    out.push(Equal(a[i]))
+  }
+  for c in mid {
+    out.push(c)
+  }
+  for i = n - s; i < n; i = i + 1 {
+    out.push(Equal(a[i]))
+  }
+  out
+}
+
+/// The algorithm dispatch used by `diff_algorithm` after common prefix/suffix
+/// trimming. Kept private so the trimming layer stays the single entry point.
+fn diff_algorithm_inner(
   algo: DiffAlgorithm,
   a: Array[String],
   b: Array[String]

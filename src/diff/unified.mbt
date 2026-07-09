@@ -98,6 +98,63 @@ pub fn[T: Show] to_unified(
   out
 }
 
+/// Renders a single-file change summary in the style of `git diff --stat`:
+///
+/// ```moonbit
+/// to_unified_stat(changes, "a.txt", 40)  // => "a.txt | 3 ++-"
+/// ```
+///
+/// `added`/`removed` line counts are rendered as a `+`/`-` histogram scaled to
+/// at most `stat_width` columns, so even large changes fit on one line. When
+/// there are no changes the string `"<name> | 0"` is returned.
+pub fn to_unified_stat(
+  changes: Array[Change[String]],
+  name: String,
+  stat_width: Int
+) -> String {
+  let mut added = 0
+  let mut removed = 0
+  for c in changes {
+    match c {
+      Equal(_) => ()
+      Delete(_) => removed = removed + 1
+      Insert(_) => added = added + 1
+    }
+  }
+  let total = added + removed
+  if total == 0 {
+    return name + " | 0"
+  }
+  let width = if stat_width > 0 { stat_width } else { 40 }
+  let mut bar = ""
+  if total <= width {
+    let mut i = 0
+    while i < added {
+      bar = bar + "+"
+      i = i + 1
+    }
+    let mut j = 0
+    while j < removed {
+      bar = bar + "-"
+      j = j + 1
+    }
+  } else {
+    let ap = (added * width + total / 2) / total
+    let rp = width - ap
+    let mut i = 0
+    while i < ap {
+      bar = bar + "+"
+      i = i + 1
+    }
+    let mut j = 0
+    while j < rp {
+      bar = bar + "-"
+      j = j + 1
+    }
+  }
+  name + " | " + total.to_string() + " " + bar
+}
+
 /// Parses the old-file starting line number from a `@@ -a,b +c,d @@` header.
 fn parse_old_start(header: String) -> Int {
   let mut i = 0

@@ -46,6 +46,14 @@ and a **multi-file tree diff** — all with zero external dependencies.
   handling) back to a document, closing the round-trip so a patch is fully reversible.
 - **Multi-file tree diff** — `diff_trees` / `render_tree_patch` / `apply_tree_patch` produce and
   consume Git-style multi-file patches with rename detection.
+- **`git diff --stat` summary** — `to_unified_stat` renders a `file | N +-` change histogram for
+  any `Change` list, scaled to fit on one line (like `git diff --stat`).
+- **Ignore whitespace / case** — `diff_lines_ignore` compares lines ignoring trailing/internal
+  whitespace (`--ignore-whitespace`) and/or letter case (`--ignore-case`), while still rendering
+  and patching the real, un-normalized content.
+- **Prefix/suffix pruning** — `diff_algorithm` trims the common leading/trailing lines before
+  dispatching, the standard `GNU diff` / `git` optimization that makes large inputs much faster
+  without changing the result.
 - **Generic & zero-dependency** — works on any `T` with `Eq` (and `Show` for rendering).
   - **Command-line tool** — `src/cli` is a runnable front-end
     (`diff` / `patch` / `merge` / `json` / `jsonapply` / `ratio` / `algo` / `selftest`)
@@ -137,6 +145,8 @@ multi-line inputs use the escape sequences `\n` (newline) and `\t` (tab):
 
 ```bash
 moon run cli -- diff "line1\nline2" "line1\nLINE2"
+moon run cli -- diff "line1\nline2" "line1\nLINE2" --stat            # git diff --stat style summary
+moon run cli -- diff "a b" "A  B" --ignore-whitespace --ignore-case  # ignore ws/case
 moon run cli -- patch "line1\nline2" "$(cat patch.txt)"     # patch text as one arg
 moon run cli -- merge "base" "ours" "theirs" --ours
 moon run cli -- json '{"a":1}' '{"a":2}'
@@ -155,6 +165,7 @@ moon run cli -- selftest                                   # internal consistenc
 | `to_new` | `fn[T] to_new(Array[Change[T]]) -> Array[T]` | reconstruct the *new* sequence |
 | `to_old` | `fn[T] to_old(Array[Change[T]]) -> Array[T]` | reconstruct the *old* sequence |
 | `diff_lines` | `fn diff_lines(String, String) -> Array[Change[String]]` | diff two texts by line |
+| `diff_lines_ignore` | `fn diff_lines_ignore(String, String, Bool, Bool) -> Array[Change[String]]` | line diff ignoring whitespace/case (real content preserved) |
 | `diff_chars` | `fn diff_chars(String, String) -> Array[Change[String]]` | character-level diff |
 | `diff_tokens` | `fn diff_tokens(String, String) -> Array[Change[String]]` | word/token-level diff (whitespace preserved) |
 | `tokenize` | `fn tokenize(String) -> Array[String]` | split into alternating word / whitespace runs |
@@ -165,6 +176,7 @@ moon run cli -- selftest                                   # internal consistenc
 | `ratio` | `fn ratio(String, String) -> Double` | similarity in `[0,1]` (LCS of code points, like `difflib.ratio`) |
 | `changes_to_string` | `fn changes_to_string(Array[Change[String]]) -> String` | reconstruct a `String` from a change list |
 | `to_unified` | `fn[T: Show] to_unified(Array[Change[T]], String, String, Int) -> String` | render a unified diff (`context` = lines of context) |
+| `to_unified_stat` | `fn to_unified_stat(Array[Change[String]], String, Int) -> String` | `git diff --stat` style `file | N +-` summary |
 | `apply_unified` | `fn apply_unified(String, String) -> String` | apply a unified diff to the old text |
 | `apply_unified_fuzzy` | `fn apply_unified_fuzzy(String, String, Int, Int) -> Result[String, String]` | apply with offset/fuzz tolerance |
 | `apply_unified_reverse` | `fn apply_unified_reverse(String, String) -> String` | apply a unified diff backwards (`patch -R`) |
@@ -211,6 +223,9 @@ moon run cli -- selftest                                   # internal consistenc
   the gaps for more "human" alignments.
 - **`diff_linear`** (Hirschberg) splits the problem in the middle and recurses, using only
   `O(|a|+|b|)` memory regardless of input size.
+- **`diff_algorithm`** trims the common prefix and suffix of the two inputs before dispatching,
+  so the underlying algorithm only runs on the (usually smaller) middle — a standard `GNU diff` /
+  `git` optimization that preserves results while drastically cutting work on large inputs.
 - **`merge3`** decomposes each branch into base-line-aligned replacement blocks, then merges per
   region: identical → keep, one-sided change → take it, both-different → conflict markers.
 - **`json_diff`** walks two JSON values and emits RFC 6902 `add`/`remove`/`replace` ops; object
@@ -234,7 +249,7 @@ where `n, m` are the sequence lengths and `D` is the edit distance.
 
 ```bash
 moon build                  # build all packages (default + bench + cli)
-moon test                   # run the test suite (40+ cases)
+moon test                   # run the test suite (50+ cases)
 moon run cli -- selftest    # run the CLI's internal consistency checks
 moon run --release src/bench  # run the benchmark harness (MoonBit side)
 ```
@@ -247,8 +262,8 @@ CI runs `moon build` and `moon test` on every push/PR via `.github/workflows/ci.
 moon.mod.json
 src/diff/
   types.mbt      # Change enum: Equal / Delete / Insert
-  core.mbt       # lcs_table, diff, myers_diff, to_new / to_old, diff_lines, diff_chars, diff_tokens, tokenize, word_diff, word_diff_html, tokenize_unicode, diff_tokens_unicode, word_diff_unicode, word_diff_html_unicode, ratio, codepoints
-  unified.mbt    # to_unified, apply_unified, apply_unified_fuzzy, apply_unified_reverse, reverse_unified
+  core.mbt       # lcs_table, diff, myers_diff, to_new / to_old, diff_lines, diff_lines_ignore, diff_chars, diff_tokens, tokenize, word_diff, word_diff_html, tokenize_unicode, diff_tokens_unicode, word_diff_unicode, word_diff_html_unicode, ratio, codepoints
+  unified.mbt    # to_unified, to_unified_stat, apply_unified, apply_unified_fuzzy, apply_unified_reverse, reverse_unified
   git.mbt        # sha1_hex, git_blob_hash, git_diff_text, binary_diff
   merge.mbt      # merge3, merge3_text, merge3_count, resolve_ours / resolve_theirs
   algorithms.mbt # DiffAlgorithm, diff_algorithm, patience_diff, histogram_diff, diff_linear
@@ -283,6 +298,9 @@ docs/
 - [x] Property / fuzz tests (`fuzz_test.mbt`: all 5 algorithms reconstruct; minimal-distance agreement; JSON & tree patch round-trips; Unicode tokeniser; `ratio` bounds).
 - [x] Multi-file tree diff with rename detection (Git-style patch apply).
 - [x] Command-line front-end / runnable example (`src/cli`).
+- [x] `git diff --stat` summary (`to_unified_stat`).
+- [x] Ignore whitespace / case (`diff_lines_ignore`, `--ignore-whitespace` / `--ignore-case`).
+- [x] Prefix/suffix pruning in `diff_algorithm` (performance optimization).
 - [ ] `moonbitlang/x/fs`-backed file I/O for the CLI (currently argument/stdin based).
 
 ## License

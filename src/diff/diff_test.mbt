@@ -388,3 +388,73 @@ test "unified_to_html marks ins and del" {
   assert_eq(page.contains("<html>"), true)
   assert_eq(page.contains("class=\"ins\""), true)
 }
+
+test "prefix/suffix pruning preserves round-trip for all algorithms" {
+  // A large common prefix and suffix with only the middle changed. The trimming
+  // optimization must leave the reconstructed inputs byte-for-byte identical for
+  // every algorithm (the trimmed lines are always `Equal`).
+  let a = [
+    "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep",
+    "OLD", "mid", "x",
+    "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail",
+  ]
+  let b = [
+    "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep",
+    "NEW", "mid", "y",
+    "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail",
+  ]
+  let names = ["lcs", "myers", "patience", "histogram", "linear"]
+  for name in names {
+    let ch = diff_algorithm(diff_algorithm_by_name(name), a, b)
+    assert_true(to_old(ch) == a)
+    assert_true(to_new(ch) == b)
+  }
+}
+
+test "unified stat summary format" {
+  let ch = diff_lines("a\nb\nc", "a\nB\nc\nd")
+  // one delete (b -> B) + one insert (d) == 2 changed lines
+  let s = to_unified_stat(ch, "f.txt", 40)
+  assert_eq(s, "f.txt | 2 +-")
+  let none = diff_lines("x\ny", "x\ny")
+  assert_eq(to_unified_stat(none, "g.txt", 40), "g.txt | 0")
+}
+
+test "unified stat histogram scales large changes" {
+  let mut old = ""
+  let mut new = ""
+  for i = 0; i < 100; i = i + 1 {
+    old = old + "o\n"
+    new = new + "n\n"
+  }
+  let ch = diff_lines(old, new)
+  let s = to_unified_stat(ch, "big.txt", 40)
+  // 200 changes -> the +/- bar is exactly `stat_width` (= 40) columns
+  let prefix = "big.txt | 200 "
+  assert_eq(s.length() - prefix.length(), 40)
+}
+
+test "ignore whitespace and case reports no spurious changes" {
+  let ch = diff_lines_ignore("a B c", "A  b  C", true, true)
+  let mut diffs = 0
+  for c in ch {
+    match c {
+      Equal(_) => ()
+      _ => diffs = diffs + 1
+    }
+  }
+  assert_eq(diffs, 0)
+}
+
+test "ignore whitespace still catches real content changes" {
+  let ch = diff_lines_ignore("foo bar", "foo baz", true, false)
+  let mut diffs = 0
+  for c in ch {
+    match c {
+      Equal(_) => ()
+      _ => diffs = diffs + 1
+    }
+  }
+  // bar -> baz is a real content change: one delete + one insert
+  assert_eq(diffs, 2)
+}
