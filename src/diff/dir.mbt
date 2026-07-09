@@ -351,14 +351,31 @@ pub fn apply_tree_patch(
     }
     let mut rename_from = ""
     let mut rename_to = ""
-    let mut old_name = ""
-    let mut new_name = ""
+    // Paths taken from the always-present `diff --git a/X b/Y` header. These
+    // stay valid even when the hunk (and therefore the `---`/`+++` lines) is
+    // absent — which happens for empty added/removed files.
+    let mut git_old = ""
+    let mut git_new = ""
     let mut is_new = false
     let mut is_del = false
     let mut first_at = -1
     for si = 0; si < sec.length(); si = si + 1 {
       let l = sec[si]
-      if substring(l, 0, 12) == "rename from " {
+      if substring(l, 0, 11) == "diff --git " {
+        // `diff --git a/OLD b/NEW` — split on the separating space.
+        let rest = substring(l, 11, l.length())
+        let mut sp = -1
+        for i = 0; i < rest.length(); i = i + 1 {
+          if rest[i] == ' ' {
+            sp = i
+            break
+          }
+        }
+        if sp >= 0 {
+          git_old = strip_dir(substring(rest, 0, sp))
+          git_new = strip_dir(substring(rest, sp + 1, rest.length()))
+        }
+      } else if substring(l, 0, 12) == "rename from " {
         rename_from = substring(l, 12, l.length())
       } else if substring(l, 0, 10) == "rename to " {
         rename_to = substring(l, 10, l.length())
@@ -366,10 +383,6 @@ pub fn apply_tree_patch(
         is_new = true
       } else if substring(l, 0, 13) == "deleted file " {
         is_del = true
-      } else if substring(l, 0, 4) == "--- " {
-        old_name = strip_dir(substring(l, 4, l.length()))
-      } else if substring(l, 0, 4) == "+++ " {
-        new_name = strip_dir(substring(l, 4, l.length()))
       } else if substring(l, 0, 2) == "@@" {
         first_at = si
       }
@@ -407,11 +420,11 @@ pub fn apply_tree_patch(
       work.push((rename_to, nc))
     } else if is_new {
       let content = content_from_add_hunk(hunk)
-      work.push((new_name, content))
+      work.push((git_new, content))
     } else if is_del {
       let mut k = 0
       while k < work.length() {
-        if work[k].0 == old_name {
+        if work[k].0 == git_old {
           let _ = work.remove(k)
         } else {
           k = k + 1
@@ -419,7 +432,7 @@ pub fn apply_tree_patch(
       }
     } else {
       // modified
-      let oc = match fileset_get(work, old_name) {
+      let oc = match fileset_get(work, git_old) {
         Some(x) => x
         None => ""
       }
@@ -427,13 +440,13 @@ pub fn apply_tree_patch(
       // replace existing entry or add
       let mut replaced = false
       for ki = 0; ki < work.length(); ki = ki + 1 {
-        if work[ki].0 == new_name {
-          work[ki] = (new_name, nc)
+        if work[ki].0 == git_new {
+          work[ki] = (git_new, nc)
           replaced = true
         }
       }
       if !replaced {
-        work.push((new_name, nc))
+        work.push((git_new, nc))
       }
     }
   }

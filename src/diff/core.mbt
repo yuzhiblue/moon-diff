@@ -2,10 +2,24 @@
 // Licensed under the Apache License, Version 2.0.
 
 /// Splits a string on newline into an `Array[String]`.
+///
+/// Uses *line* semantics (matching git and most text diff tools): a trailing
+/// newline does **not** introduce a phantom empty line, and an empty string
+/// yields an empty array rather than a single `""` element. This keeps the
+/// line model consistent so that `apply_unified` is a true inverse of
+/// `to_unified` even for empty contents.
 pub fn split_lines(s: String) -> Array[String] {
+  if s.length() == 0 {
+    return []
+  }
   let out: Array[String] = []
   for line in s.split("\n") {
     out.push(line.to_owned())
+  }
+  // Drop a single trailing empty element produced by a trailing newline, e.g.
+  // `"a\n".split("\n")` may yield `["a", ""]` on some platforms.
+  if out.length() > 0 && out[out.length() - 1] == "" {
+    let _ = out.pop()
   }
   out
 }
