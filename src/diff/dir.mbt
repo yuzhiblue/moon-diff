@@ -193,14 +193,14 @@ fn render_change(
     Modified(path, oc, nc) => git_diff_text(oc, nc, path, path, 3)
     Added(path, nc) => {
       let sha = git_blob_hash(nc)
-      "diff --git a/" + path + " b/" + path + "\n" +
+      diff_git_line(path, path) +
       "new file mode 100644\n" +
       "index 0000000000000000000000000000000000000000.." + sha + "\n" +
       to_unified(diff([], split_lines(nc)), "/dev/null", "b/" + path, 3)
     }
     Removed(path, oc) => {
       let sha = git_blob_hash(oc)
-      "diff --git a/" + path + " b/" + path + "\n" +
+      diff_git_line(path, path) +
       "deleted file mode 100644\n" +
       "index " + sha + "..0000000000000000000000000000000000000000\n" +
       to_unified(diff(split_lines(oc), []), "a/" + path, "/dev/null", 3)
@@ -216,7 +216,7 @@ fn render_change(
       }
       let sim = similarity(oc, nc)
       let head =
-        "diff --git a/" + from + " b/" + to + "\n" +
+        diff_git_line(from, to) +
         "similarity index " + sim.to_string() + "%\n" +
         "rename from " + from + "\n" +
         "rename to " + to + "\n"
@@ -409,7 +409,7 @@ pub fn apply_tree_patch(
       }
       let nc =
         if hunk.length() > 0 {
-          apply_unified(oc, hunk_lines_to_text(hunk))
+          apply_unified(oc, hunk.join("\n"))
         } else {
           oc
         }
@@ -441,7 +441,7 @@ pub fn apply_tree_patch(
         Some(x) => x
         None => ""
       }
-      let nc = apply_unified(oc, hunk_lines_to_text(hunk))
+      let nc = apply_unified(oc, hunk.join("\n"))
       // replace existing entry or add
       let mut replaced = false
       for ki = 0; ki < work.length(); ki = ki + 1 {
@@ -456,9 +456,4 @@ pub fn apply_tree_patch(
     }
   }
   Ok(fileset(work))
-}
-
-/// Joins hunk lines back into patch text for `apply_unified`.
-fn hunk_lines_to_text(hunk: Array[String]) -> String {
-  hunk.join("\n")
 }

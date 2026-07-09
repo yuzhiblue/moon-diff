@@ -369,7 +369,7 @@ fn codepoints(s: String) -> Array[Int] {
 fn cp_is_space(cp: Int) -> Bool {
   cp == 0x20 || cp == 0x09 || cp == 0x0a || cp == 0x0d ||
   cp == 0x00a0 || cp == 0x1680 || cp == 0x3000 || cp == 0x2028 ||
-  cp == 0x2029 || cp == 0x205f || cp == 0x3000
+  cp == 0x2029 || cp == 0x205f
 }
 
 /// True for CJK / Kana / Hangul / Bopomofo code points — these are diffed

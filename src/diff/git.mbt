@@ -167,6 +167,18 @@ pub fn git_blob_hash(text: String) -> String {
   to_hex(sha1(msg))
 }
 
+/// Builds the `diff --git a/X b/Y` header line shared by `git_diff_text`,
+/// `binary_diff` and the file-level headers emitted by `dir.mbt`.
+fn diff_git_line(a_path: String, b_path: String) -> String {
+  "diff --git a/" + a_path + " b/" + b_path + "\n"
+}
+
+/// Builds the `index <old_sha>..<new_sha> 100644` line shared by `git_diff_text`
+/// and `binary_diff`.
+fn git_index_header(old_hash: String, new_hash: String) -> String {
+  "index " + old_hash + ".." + new_hash + " 100644\n"
+}
+
 /// Renders a git-style unified diff with a `diff --git` header and an `index`
 /// line carrying the blob SHA-1s (matching `git diff` output). Pass names such
 /// as `"a/file.txt"` / `"b/file.txt"`.
@@ -181,17 +193,14 @@ pub fn git_diff_text(
   let body = to_unified(changes, old_name, new_name, context)
   let oh = git_blob_hash(old_text)
   let nh = git_blob_hash(new_text)
-  "diff --git a/" + old_name + " b/" + new_name + "\n" +
-  "index " + oh + ".." + nh + " 100644\n" + body
+  diff_git_line(old_name, new_name) + git_index_header(oh, nh) + body
 }
 
 /// Produces a git-style binary diff (`Binary files ... differ`) with proper
-/// blob SHA-1s in the `index` line. `old` / `new` are the raw contents
-/// (ASCII-only safe).
+/// blob SHA-1s in the `index` line.
 pub fn binary_diff(old: String, new: String, name: String) -> String {
   let oh = git_blob_hash(old)
   let nh = git_blob_hash(new)
-  "diff --git a/" + name + " b/" + name + "\n" +
-  "index " + oh + ".." + nh + " 100644\n" +
+  diff_git_line(name, name) + git_index_header(oh, nh) +
   "Binary files a/" + name + " and b/" + name + " differ\n"
 }
