@@ -129,6 +129,34 @@ test "binary diff format" {
   assert_eq(patch.contains("index "), true)
 }
 
+test "git_diff_text header structure" {
+  // Pins the git header *layout* (the `diff --git` line and the `index
+  // <old>..<new> 100644` line). The hash values themselves are locked by
+  // "git blob hash matches git for utf8"; here we guard against anyone
+  // breaking the surrounding decoration (dropping `100644`, changing the
+  // `..` separator, or mis-wiring the a//b path) which the round-trip and
+  // hash tests would all silently miss.
+  let old = "foo\nbar\nbaz\n"
+  let new = "foo\nBAR\nbaz\nqux\n"
+  let patch = git_diff_text(old, new, "file.txt", "file.txt", 3)
+  let oh = git_blob_hash(old)
+  let nh = git_blob_hash(new)
+  let header = "diff --git a/file.txt b/file.txt\n" +
+    "index " + oh + ".." + nh + " 100644\n"
+  assert_eq(patch.contains(header), true)
+}
+
+test "binary_diff header structure" {
+  // A binary diff is fully deterministic, so we pin the *entire* output.
+  let patch = binary_diff("old bytes", "new bytes", "data.bin")
+  let oh = git_blob_hash("old bytes")
+  let nh = git_blob_hash("new bytes")
+  let expected = "diff --git a/data.bin b/data.bin\n" +
+    "index " + oh + ".." + nh + " 100644\n" +
+    "Binary files a/data.bin and b/data.bin differ\n"
+  assert_eq(patch, expected)
+}
+
 test "fuzzy apply with offset" {
   let old = "a\nb\nc\nd\ne\nf\ng"
   let new = "a\nb\nc\nd\nX\nf\ng"
