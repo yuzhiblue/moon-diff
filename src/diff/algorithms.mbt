@@ -354,11 +354,12 @@ fn linear_rec(
     }
     return out
   }
-  if n == 1 && m == 1 {
-    if a[a0] == b[b0] {
-      return [Equal(a[a0])]
-    }
-    return [Delete(a[a0]), Insert(b[b0])]
+  // Degenerate one-dimension cases: splitting `b` in half would yield `mb = 0`
+  // (when `m == 1`) and the recursion would never shrink the `b` dimension,
+  // looping forever and overflowing the stack. Fall back to an exact LCS diff,
+  // which is cheap here (one dimension <= 1) and still produces a minimal script.
+  if n <= 1 || m <= 1 {
+    return diff(slice(a, a0, a1), slice(b, b0, b1))
   }
   let mb = m / 2
   let fwd = edit_last_row(slice(a, a0, a1), slice(b, b0, b0 + mb))

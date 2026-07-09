@@ -51,6 +51,11 @@ pub fn[T: Show] to_unified(
       changed.push(p)
     }
   }
+  // No actual differences (e.g. an unchanged or empty-content file): produce an
+  // empty patch rather than dereferencing `changed[0]` on an empty list.
+  if changed.length() == 0 {
+    return ""
+  }
   let ranges: Array[(Int, Int)] = []
   let mut hunk_start = max_i(changed[0] - context, 0)
   let mut hunk_end = changed[0] + context

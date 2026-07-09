@@ -755,6 +755,12 @@ fn arr_insert(a: Array[Json], idx: Int, v: Json) -> Array[Json] {
     }
     out.push(a[i])
   }
+  // The loop above only fires for `i == idx` when `idx < len`; when `idx == len`
+  // (the common "append" case produced by a JSON Patch `add`) we must push `v`
+  // here, otherwise the element would silently vanish.
+  if idx >= a.length() {
+    out.push(v)
+  }
   out
 }
 
