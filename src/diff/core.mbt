@@ -533,7 +533,7 @@ pub fn ratio(a: String, b: String) -> Double {
 /// A line paired with a *normalized comparison key*. Two `KeyedLine`s compare
 /// equal when their keys match, but the original `raw` text is kept so that a
 /// normalized diff still renders (and patches) the real, un-normalized content.
-struct KeyedLine {
+priv struct KeyedLine {
   key: String
   raw: String
 }
