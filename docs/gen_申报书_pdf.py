@@ -116,11 +116,11 @@ S.append(section("三、移植或参考说明"))
 S.append(para(
     "本项目为原创项目，不是移植项目。实现时参考了以下项目的思路和格式约定（仅参考公开的算法思路、格式规范与接口行为，未复制其源代码）："))
 S.append(bullets([
-    "Python 标准库 difflib（ratio 相似度算法、SequenceMatcher 的匹配块思路）— 许可证：Python Software Foundation License（PSFL）；",
-    "GNU diff / patch 工具（unified diff 格式、offset/fuzz 容错行为）— 许可证：GPL-3.0-or-later；",
-    "Git（diff --git / index 头格式、blob SHA-1、git diff --stat 摘要、三路合并冲突标记）— 许可证：GPL-2.0-only；",
-    "RFC 6902 JSON Patch 规范（语义 JSON diff 的操作格式）— IETF Trust 版权，代码组件为 Simplified BSD License；",
-    "Myers / Patience / Histogram / Hirschberg 等算法 — 公开学术论文（Myers 1986、Hirschberg 1975 等），属公开文献。",
+    "Python 标准库 difflib（ratio 相似度算法、SequenceMatcher 的匹配块思路）— 许可证：Python Software Foundation License（PSFL）— 来源：https://docs.python.org/3/library/difflib.html；",
+    "GNU diff / patch 工具（unified diff 格式、offset/fuzz 容错行为）— 许可证：GPL-3.0-or-later — 来源：https://www.gnu.org/software/diffutils/ 、https://savannah.gnu.org/projects/patch/；",
+    "Git（diff --git / index 头格式、blob SHA-1、git diff --stat 摘要、三路合并冲突标记）— 许可证：GPL-2.0-only — 来源：https://git-scm.com/；",
+    "RFC 6902 JSON Patch 规范（语义 JSON diff 的操作格式）— IETF Trust 版权，代码组件为 Simplified BSD License — 来源：https://www.rfc-editor.org/rfc/rfc6902；",
+    "Myers / Patience / Histogram / Hirschberg 等算法 — 公开学术论文（Myers 1986、Hirschberg 1975 等），属公开文献 — 来源：http://www.xmailserver.org/diff2.pdf 、https://dl.acm.org/doi/10.1145/360248.360260 、https://github.com/git/git/blob/master/diff.c。",
 ]))
 S.append(para(
     "<b>来源合规声明</b>：本项目全部代码为作者原创 MoonBit 实现，仅参考上述公开的开源项目与文献的思路和格式，未复制、改写或包含任何私有代码、闭源代码、商业代码或来源不明的内容；项目以 Apache-2.0 协议开源，仓库公开可访问、可构建、可测试。"))
