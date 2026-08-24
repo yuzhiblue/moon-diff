@@ -112,41 +112,8 @@ S.append(bullets([
     "忽略空白/大小写：diff_lines_ignore 支持 --ignore-whitespace / --ignore-case，渲染和回放时保留真实内容。",
 ]))
 
-S.append(section("三、项目现有基础"))
-S.append(bullets([
-    "有效 MoonBit 代码约 4,000 行（物理 4,879 行）；",
-    "53 个测试（41 个常规 + 12 个模糊测试），CI 全绿；",
-    "已发布到 MoonCakes（v0.2.2），moon add yuzhiblue/moon-diff 即可使用；",
-    "仓库公开，构建测试可复现。",
-]))
-
-S.append(section("四、本次计划开发或新增的内容"))
-S.append(bullets([
-    "CLI 文件 I/O：基于 moonbitlang/x/fs 支持真实文件参数（moon run cli -- diff old.txt new.txt），替代现在的转义字符串传参；",
-    "HTML 高亮渲染：扩展 word_diff_html 为完整的行内高亮渲染器（着色、行号），补配套示例；",
-    "新增示例工程：仓库里放一个可直接运行的示例（配置文件差异检查/合并工具）；",
-    "文档与测试补强：补充 API 文档、更多模糊测试用例。",
-]))
-
-S.append(section("五、项目预期目标和技术路线"))
-S.append(para(
-    "<b>预期目标</b>：交付一个真实可用、测试完备、文档清楚的 MoonBit 文本 diff/patch 库，能直接接入项目使用。"))
-S.append(para(
-    "<b>技术路线</b>：核心引擎按“差异算法层 → 渲染层（unified/git/binary）→ 应用层"
-    "（apply/reverse/fuzzy）→ 高层能力（merge3/JSON Patch/tree diff）”分层；正确性靠五算法"
-    "重建一致性测试 + 随机模糊测试交叉验证 + 与 Python difflib / git 对照基准；性能用前后缀"
-    "公共段剪枝和线性空间算法（Hirschberg）。"))
-
-S.append(section("六、预计完成的功能、测试和文档"))
-S.append(bullets([
-    "功能：上面“本次计划新增的内容”全部落地；",
-    "测试：从 53 个增至 70+，新增边界输入用例（空串、单字符、超长行、非法 UTF-8、深嵌套 JSON 等）；",
-    "文档：README 补全 API 用法和示例输出，docs/ 新增英文 API 参考和性能基准报告。",
-]))
-
-S.append(section("七、移植或参考说明"))
-S.append(para(
-    "本项目为原创项目，不是移植项目。实现时参考了以下项目的思路和格式约定："))
+S.append(section("三、移植或参考说明"))
+S.append(para("本项目为原创项目，不是移植项目。实现时参考了以下项目的思路和格式约定："))
 S.append(bullets([
     "Python 标准库 difflib（ratio 相似度算法、SequenceMatcher 的匹配块思路）；",
     "GNU diff / patch 工具（unified diff 格式、offset/fuzz 容错行为）；",
@@ -154,8 +121,7 @@ S.append(bullets([
     "RFC 6902 JSON Patch 规范（语义 JSON diff 的操作格式）；",
     "Myers / Patience / Histogram / Hirschberg 等算法的公开论文与实现。",
 ]))
-S.append(para(
-    "本项目使用 Apache-2.0 协议开源，仓库公开可访问、可构建、可测试。"))
+S.append(para("本项目使用 Apache-2.0 协议开源，仓库公开可访问、可构建、可测试。"))
 
 doc.build(S)
 print("OK ->", os.path.join(BASE, "申报书-moon-diff.pdf"))
