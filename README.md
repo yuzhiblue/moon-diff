@@ -4,14 +4,25 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![mooncakes](https://img.shields.io/badge/mooncakes-yuzhiblue%2Fmoon--diff-blue)](https://mooncakes.io/package/yuzhiblue/moon-diff)
 
+> 🏆 2026 MoonBit 国产基础软件生态开源大赛 · 8月黑客松参赛项目
+> 申报书：📄 [docs/申报书-moon-diff.md](docs/申报书-moon-diff.md) ｜ 📑 [docs/申报书-moon-diff.pdf](docs/申报书-moon-diff.pdf)
+
 A text **diff & patch** library for [MoonBit](https://www.moonbitlang.com/), written for the
-*MoonBit 国产基础软件生态开源大赛 (MGPIC 2026)*.
+*MoonBit 国产基础软件生态开源大赛 (MGPIC 2026) 8月黑客松*.
 
 `moon-diff` computes the difference between two sequences and renders / applies standard
 **unified diffs** (the `diff -u` format used by Git, patch, etc.). It is generic over the
 element type, so it works on lines, tokens, AST nodes, or any `Array[T]`. On top of the core
 diff engine it also offers **5 diff algorithms**, a **3-way merge**, a **semantic JSON diff**,
 and a **multi-file tree diff** — all with zero external dependencies.
+
+## Project status
+
+- **~4,000 effective lines of MoonBit** (core lib 3,275 + CLI 314 + tests 393; physical 4,879) —
+  in the contest's reference 4,000–10,000 line range.
+- **53 tests** (41 unit + 12 fuzz), CI green on every push/PR (`moon build` + `moon test`).
+- Published on [MoonCakes](https://mooncakes.io/package/yuzhiblue/moon-diff) (v0.2.2).
+- Benchmarked against Python `difflib` — see [docs/bench_results.md](docs/bench_results.md).
 
 ## Features
 
