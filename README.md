@@ -7,8 +7,7 @@
 > 🏆 2026 MoonBit 国产基础软件生态开源大赛 · 8月黑客松参赛项目
 > 申报书：📄 [docs/申报书-moon-diff.md](docs/申报书-moon-diff.md) ｜ 📑 [docs/申报书-moon-diff.pdf](docs/申报书-moon-diff.pdf)
 
-A text **diff & patch** library for [MoonBit](https://www.moonbitlang.com/), written for the
-*MoonBit 国产基础软件生态开源大赛 (MGPIC 2026) 8月黑客松*.
+A text **diff & patch** library for [MoonBit](https://www.moonbitlang.com/).
 
 `moon-diff` computes the difference between two sequences and renders / applies standard
 **unified diffs** (the `diff -u` format used by Git, patch, etc.). It is generic over the
