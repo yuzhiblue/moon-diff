@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![mooncakes](https://img.shields.io/badge/mooncakes-yuzhiblue%2Fmoon--diff-blue)](https://mooncakes.io/package/yuzhiblue/moon-diff)
 
-> 🏆 2026 MoonBit 国产基础软件生态开源大赛 · 8月黑客松参赛项目
+> 🏆 2026 MoonBit 开源大赛 · 8月黑客松参赛项目
 > 申报书：📄 [docs/申报书-moon-diff.md](docs/申报书-moon-diff.md) ｜ 📑 [docs/申报书-moon-diff.pdf](docs/申报书-moon-diff.pdf)
 
 A text **diff & patch** library for [MoonBit](https://www.moonbitlang.com/).
@@ -276,6 +276,7 @@ src/diff/
   unified.mbt    # to_unified, to_unified_stat, apply_unified, apply_unified_fuzzy, apply_unified_reverse, reverse_unified
   git.mbt        # sha1_hex, git_blob_hash, git_diff_text, binary_diff
   merge.mbt      # merge3, merge3_text, merge3_count, resolve_ours / resolve_theirs
+  html.mbt       # word_diff_html / word_diff_html_unicode (intra-line HTML highlighting)
   algorithms.mbt # DiffAlgorithm, diff_algorithm, patience_diff, histogram_diff, diff_linear
   semantic.mbt   # JSON parser, json_equal, json_to_string, json_diff (RFC 6902), json_patch_to_string, json_diff_text, apply_json_patch / apply_json_patch_text
   dir.mbt        # diff_trees, render_tree_patch, apply_tree_patch, tree_diff_summary
