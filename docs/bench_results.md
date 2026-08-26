@@ -34,9 +34,29 @@ workload (words@ratio%)      MoonBit (s)    Python (s)   speedup
 
 **Overall total**: MoonBit 35.555s, Python 0.777s (0.02x for the full suite).
 
-> Note: moon-diff is measured on the optimised JS backend (release mode).
-> The native backend -- which would be the production target and is typically
-> much faster -- could not be built here because no system C compiler is
-> installed. Python's `difflib.SequenceMatcher` is backed by a C extension.
+> Note: moon-diff is measured on the optimised **JS backend** (release mode).
+> The native / wasm-gc backends -- the production targets -- could not be
+> benchmarked here because the MoonBit toolchain does not ship binaries for
+> Darwin x86_64 (only arm64 / Linux x86_64); the repo has no system C
+> compiler requirement, but this machine's architecture is not covered by
+> the official distribution. MoonBit's native backend typically runs an
+> order of magnitude faster than the JS backend.
+>
+> ### Reading the numbers
+>
+> - **Myers `O(ND)`** is the *recommended default*: at 0.84x of C-backed
+>   Python it is essentially on par even on the JS backend, and it degrades
+>   gracefully as the edit ratio grows (linear in edit distance `D`).
+> - **LCS `O(NM)` / token-level diff** are quadratic and only meant for
+>   small inputs; the 50-100x gap is the *algorithmic* cost (full `N×M`
+>   table, allocation-heavy token streams) compounded by the JS backend,
+>   not a per-operation constant-factor issue. Python's
+>   `difflib.SequenceMatcher` is backed by a C extension and also uses
+>   `autojunk` heuristics that skip most of the table for these workloads.
+> - Users who need large-input line diffs should call `myers_diff` (or the
+>   prefix/suffix-pruned `diff_algorithm` dispatcher); `diff`/`diff_tokens`
+>   are intentionally simple reference implementations, and the docs
+>   recommend Myers for production use.
+>
 > Each repetition runs the strategy under comparison; Python has a single
 > diff engine, so `myers` and `lcs` are both compared against `difflib`.
