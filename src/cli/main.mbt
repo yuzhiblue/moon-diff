@@ -6,16 +6,17 @@
 // as arguments. Because the Core SDK bundles no filesystem package, multi-line
 // inputs use the escape sequences `\n` (newline) and `\t` (tab), e.g.
 //
-//   moon run cli -- diff "line1\nline2" "line1\nLINE2"
+//   moon run src/cli -- diff "line1\nline2" "line1\nLINE2"
 //
 // All output goes to stdout; the process exits 0 on success.
 
+///|
 /// Converts the escape sequences `\n` (newline) and `\t` (tab) in `s` into the
 /// corresponding control characters, so multi-line inputs can be supplied as a
 /// single command-line argument. A backslash before any other character is
 /// preserved literally.
-fn unescape(s: String) -> String {
-  let mut out: String = ""
+fn unescape(s : String) -> String {
+  let mut out : String = ""
   let mut i = 0
   let n = s.length()
   while i < n {
@@ -29,19 +30,20 @@ fn unescape(s: String) -> String {
         out = out + "\t"
         i = i + 2
       } else {
-        out = out + "\{c}"
+        out = out + s[i:i + 1].to_owned()
         i = i + 1
       }
     } else {
-      out = out + "\{c}"
+      out = out + s[i:i + 1].to_owned()
       i = i + 1
     }
   }
   out
 }
 
+///|
 /// Parses a non-negative integer, returning `default` on any malformed input.
-fn parse_int(s: String, default: Int) -> Int {
+fn parse_int(s : String, default : Int32) -> Int32 {
   let mut v = 0
   let mut any = false
   for i = 0; i < s.length(); i = i + 1 {
@@ -60,14 +62,15 @@ fn parse_int(s: String, default: Int) -> Int {
   }
 }
 
+///|
 /// Splits `args[start..]` into positional arguments plus the parsed flags
 /// `--algo <name>`, `--context <n>`, `--git`, `--stat`, `--ignore-whitespace`,
 /// `--ignore-case`, `--ours`, `--theirs`.
 fn parse_flags(
-  args: Array[String],
-  start: Int
-) -> (Array[String], String, Int, Bool, String, Bool, Bool, Bool) {
-  let pos: Array[String] = []
+  args : Array[String],
+  start : Int32,
+) -> (Array[String], String, Int32, Bool, String, Bool, Bool, Bool) {
+  let pos : Array[String] = []
   let mut algo = "linear"
   let mut context = 3
   let mut git = false
@@ -110,28 +113,48 @@ fn parse_flags(
   (pos, algo, context, git, resolve, stat, ignore_ws, ignore_case)
 }
 
+///|
 fn print_usage() -> Unit {
   println("moon-diff - a text diff & patch toolkit")
   println("")
-  println("usage: moon run cli -- <command> [args] [flags]")
+  println("usage: moon run src/cli -- <command> [args] [flags]")
   println("")
   println("commands:")
   println("  diff OLD NEW [--algo lcs|myers|patience|histogram|linear]")
   println("              [--context N] [--git] [--stat] [--ignore-whitespace]")
-  println("              [--ignore-case]   unified (or git/stat) diff of two texts")
-  println("  patch OLD PATCH                         apply a unified diff to OLD")
-  println("  merge BASE OURS THEIRS [--ours|--theirs]  3-way merge (diff3 style)")
-  println("  json A B                                RFC 6902 JSON Patch of A -> B")
-  println("  jsonapply DOC PATCH                     apply an RFC 6902 JSON Patch to DOC")
-  println("  ratio A B                               similarity ratio of A and B in [0,1]")
-  println("  algo OLD NEW                            edit distance of all 5 algorithms")
-  println("  selftest                                internal consistency checks")
+  println(
+    "              [--ignore-case]   unified (or git/stat) diff of two texts",
+  )
+  println(
+    "  patch OLD PATCH                         apply a unified diff to OLD",
+  )
+  println(
+    "  merge BASE OURS THEIRS [--ours|--theirs]  3-way merge (diff3 style)",
+  )
+  println(
+    "  json A B                                RFC 6902 JSON Patch of A -> B",
+  )
+  println(
+    "  jsonapply DOC PATCH                     apply an RFC 6902 JSON Patch to DOC",
+  )
+  println(
+    "  ratio A B                               similarity ratio of A and B in [0,1]",
+  )
+  println(
+    "  algo OLD NEW                            edit distance of all 5 algorithms",
+  )
+  println(
+    "  selftest                                internal consistency checks",
+  )
   println("")
   println("multi-line arguments use \\n (newline) and \\t (tab) escapes.")
-  println("--ignore-whitespace/--ignore-case apply to `diff` and `diff --stat`.")
+  println(
+    "--ignore-whitespace/--ignore-case apply to `diff` and `diff --stat`.",
+  )
 }
 
-fn cmd_diff(args: Array[String]) -> Unit {
+///|
+fn cmd_diff(args : Array[String]) -> Unit {
   let (pos, algo, context, git, _, stat, iws, iwc) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("diff: expected two texts (OLD NEW)")
@@ -144,16 +167,15 @@ fn cmd_diff(args: Array[String]) -> Unit {
   } else {
     let old_lines = @diff.split_lines(old)
     let new_lines = @diff.split_lines(new)
-    let changed =
-      if iws || iwc {
-        @diff.diff_lines_ignore(old, new, iws, iwc)
-      } else {
-        @diff.diff_algorithm(
-          @diff.diff_algorithm_by_name(algo),
-          old_lines,
-          new_lines,
-        )
-      }
+    let changed = if iws || iwc {
+      @diff.diff_lines_ignore(old, new, iws, iwc)
+    } else {
+      @diff.diff_algorithm(
+        @diff.diff_algorithm_by_name(algo),
+        old_lines,
+        new_lines,
+      )
+    }
     if stat {
       println(@diff.to_unified_stat(changed, "a.txt", 40))
     } else {
@@ -162,7 +184,8 @@ fn cmd_diff(args: Array[String]) -> Unit {
   }
 }
 
-fn cmd_patch(args: Array[String]) -> Unit {
+///|
+fn cmd_patch(args : Array[String]) -> Unit {
   let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("patch: expected (OLD PATCH)")
@@ -173,7 +196,8 @@ fn cmd_patch(args: Array[String]) -> Unit {
   println(@diff.apply_unified(old, patch))
 }
 
-fn cmd_merge(args: Array[String]) -> Unit {
+///|
+fn cmd_merge(args : Array[String]) -> Unit {
   let (pos, _, _, _, resolve, _, _, _) = parse_flags(args, 2)
   if pos.length() < 3 {
     println("merge: expected (BASE OURS THEIRS)")
@@ -194,14 +218,16 @@ fn cmd_merge(args: Array[String]) -> Unit {
     if r.has_conflict {
       println("")
       println(
-        "warning: " + r.conflicts.length().to_string() +
+        "warning: " +
+        r.conflicts.length().to_string() +
         " conflict(s); use --ours/--theirs to resolve",
       )
     }
   }
 }
 
-fn cmd_json(args: Array[String]) -> Unit {
+///|
+fn cmd_json(args : Array[String]) -> Unit {
   let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("json: expected two JSON texts (A B)")
@@ -215,7 +241,8 @@ fn cmd_json(args: Array[String]) -> Unit {
   }
 }
 
-fn cmd_jsonapply(args: Array[String]) -> Unit {
+///|
+fn cmd_jsonapply(args : Array[String]) -> Unit {
   let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("jsonapply: expected (DOC PATCH)")
@@ -227,7 +254,8 @@ fn cmd_jsonapply(args: Array[String]) -> Unit {
   }
 }
 
-fn cmd_ratio(args: Array[String]) -> Unit {
+///|
+fn cmd_ratio(args : Array[String]) -> Unit {
   let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("ratio: expected two texts (A B)")
@@ -237,7 +265,8 @@ fn cmd_ratio(args: Array[String]) -> Unit {
   println(r.to_string())
 }
 
-fn cmd_algo(args: Array[String]) -> Unit {
+///|
+fn cmd_algo(args : Array[String]) -> Unit {
   let (pos, _, _, _, _, _, _, _) = parse_flags(args, 2)
   if pos.length() < 2 {
     println("algo: expected two texts (OLD NEW)")
@@ -259,6 +288,7 @@ fn cmd_algo(args: Array[String]) -> Unit {
   }
 }
 
+///|
 fn cmd_selftest() -> Unit {
   // 1. reconstruction: @diff.to_new / @diff.to_old round-trip for every algorithm
   let a = ["x", "y", "z"]
@@ -291,36 +321,32 @@ fn cmd_selftest() -> Unit {
   }
   // 3. json diff produces a non-empty patch for differing docs
   match @diff.json_diff_text("{\"a\":1}", "{\"a\":2}") {
-    Ok(s) => {
+    Ok(s) =>
       if s.length() < 2 {
         println("selftest FAIL: empty json patch")
         return
       }
-    }
     Err(_) => {
       println("selftest FAIL: json parse error")
       return
     }
   }
   // 4. RFC 6902 apply round-trips a known document (closes the patch loop)
-  let doc1 =
-    match @diff.parse_json("{\"a\":1,\"b\":[1,2]}") {
-      Ok(d) => d
-      Err(_) => @diff.json_null()
-    }
-  let doc2 =
-    match @diff.parse_json("{\"a\":2,\"b\":[1,3]}") {
-      Ok(d) => d
-      Err(_) => @diff.json_null()
-    }
+  let doc1 = match @diff.parse_json("{\"a\":1,\"b\":[1,2]}") {
+    Ok(d) => d
+    Err(_) => @diff.json_null()
+  }
+  let doc2 = match @diff.parse_json("{\"a\":2,\"b\":[1,3]}") {
+    Ok(d) => d
+    Err(_) => @diff.json_null()
+  }
   let ops = @diff.json_diff(doc1, doc2, "")
   match @diff.apply_json_patch(doc1, ops) {
-    Ok(res) => {
+    Ok(res) =>
       if !@diff.json_equal(res, doc2) {
         println("selftest FAIL: json apply round-trip mismatch")
         return
       }
-    }
     Err(_) => {
       println("selftest FAIL: json apply error")
       return
@@ -329,6 +355,7 @@ fn cmd_selftest() -> Unit {
   println("selftest: all checks passed")
 }
 
+///|
 fn main {
   let args = @env.args()
   if args.length() < 2 {

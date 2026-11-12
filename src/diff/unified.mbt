@@ -1,38 +1,47 @@
 // Copyright 2026 The moon-diff Authors.
 // Licensed under the Apache License, Version 2.0.
 
+///|
 priv struct Op {
-  tag: Char
-  text: String
+  tag : Char
+  text : String
 }
 
-fn max_i(a: Int, b: Int) -> Int {
-  if a > b { a } else { b }
+///|
+fn max_i(a : Int32, b : Int32) -> Int32 {
+  if a > b {
+    a
+  } else {
+    b
+  }
 }
 
-fn is_digit_char(c: Int) -> Bool {
+///|
+fn is_digit_char(c : Int32) -> Bool {
   let z = '0'.to_int()
   let n = '9'.to_int()
   c >= z && c <= n
 }
 
-fn digit_from_char(c: Int) -> Int {
+///|
+fn digit_from_char(c : Int32) -> Int32 {
   c - '0'.to_int()
 }
 
+///|
 /// Renders a `Change` list as a unified diff (GNU `diff -u` style) string.
-pub fn[T: Show] to_unified(
-  changes: Array[Change[T]],
-  old_name: String,
-  new_name: String,
-  context: Int
+pub fn[T : Show] to_unified(
+  changes : Array[Change[T]],
+  old_name : String,
+  new_name : String,
+  context : Int32,
 ) -> String {
-  let ops: Array[Op] = []
+  let ops : Array[Op] = []
   for c in changes {
     match c {
-      Equal(x) => ops.push(Op::{ tag: ' ', text: x.to_string() })
-      Delete(x) => ops.push(Op::{ tag: '-', text: x.to_string() })
-      Insert(x) => ops.push(Op::{ tag: '+', text: x.to_string() })
+      Equal(x) => ops.push(Op::{ tag: ' ', text: x.to_string(), })
+      Delete(x) => ops.push(Op::{ tag: '-', text: x.to_string(), })
+      Insert(x) => ops.push(Op::{ tag: '+', text: x.to_string(), })
     }
   }
   let n = ops.length()
@@ -45,7 +54,7 @@ pub fn[T: Show] to_unified(
     old_prefix[p + 1] = old_prefix[p] + (if ops[p].tag != '+' { 1 } else { 0 })
     new_prefix[p + 1] = new_prefix[p] + (if ops[p].tag != '-' { 1 } else { 0 })
   }
-  let changed: Array[Int] = []
+  let changed : Array[Int32] = []
   for p = 0; p < n; p = p + 1 {
     if ops[p].tag != ' ' {
       changed.push(p)
@@ -56,7 +65,7 @@ pub fn[T: Show] to_unified(
   if changed.length() == 0 {
     return ""
   }
-  let ranges: Array[(Int, Int)] = []
+  let ranges : Array[(Int32, Int32)] = []
   let mut hunk_start = max_i(changed[0] - context, 0)
   let mut hunk_end = changed[0] + context
   for ci = 1; ci < changed.length(); ci = ci + 1 {
@@ -84,7 +93,12 @@ pub fn[T: Show] to_unified(
     let new_start = new_prefix[s] + 1
     let new_count = new_prefix[e] - new_prefix[s]
     out = out + "@@ -" + old_start.to_string() + "," + old_count.to_string()
-    out = out + " +" + new_start.to_string() + "," + new_count.to_string() + " @@\n"
+    out = out +
+      " +" +
+      new_start.to_string() +
+      "," +
+      new_count.to_string() +
+      " @@\n"
     for p = s; p < e; p = p + 1 {
       let prefix = match ops[p].tag {
         ' ' => " "
@@ -98,9 +112,10 @@ pub fn[T: Show] to_unified(
   out
 }
 
+///|
 /// Renders a single-file change summary in the style of `git diff --stat`:
 ///
-/// ```moonbit
+/// ```moonbit nocheck
 /// to_unified_stat(changes, "a.txt", 40)  // => "a.txt | 3 ++-"
 /// ```
 ///
@@ -108,9 +123,9 @@ pub fn[T: Show] to_unified(
 /// at most `stat_width` columns, so even large changes fit on one line. When
 /// there are no changes the string `"<name> | 0"` is returned.
 pub fn to_unified_stat(
-  changes: Array[Change[String]],
-  name: String,
-  stat_width: Int
+  changes : Array[Change[String]],
+  name : String,
+  stat_width : Int32,
 ) -> String {
   let mut added = 0
   let mut removed = 0
@@ -155,8 +170,9 @@ pub fn to_unified_stat(
   name + " | " + total.to_string() + " " + bar
 }
 
+///|
 /// Parses the old-file starting line number from a `@@ -a,b +c,d @@` header.
-fn parse_old_start(header: String) -> Int {
+fn parse_old_start(header : String) -> Int32 {
   let mut i = 0
   let len = header.length()
   while i < len && header[i].to_int() != '-'.to_int() {
@@ -171,7 +187,8 @@ fn parse_old_start(header: String) -> Int {
   num
 }
 
-fn is_meta(line: String) -> Bool {
+///|
+fn is_meta(line : String) -> Bool {
   if line.length() >= 2 && line[0] == '@' && line[1] == '@' {
     return true
   }
@@ -184,12 +201,13 @@ fn is_meta(line: String) -> Bool {
   false
 }
 
+///|
 /// Applies a unified diff (as produced by `to_unified`) to `old_text`
 /// and returns the resulting new text.
-pub fn apply_unified(old_text: String, patch: String) -> String {
+pub fn apply_unified(old_text : String, patch : String) -> String {
   let old_lines = split_lines(old_text)
   let patch_lines = split_lines(patch)
-  let result: Array[String] = []
+  let result : Array[String] = []
   let mut old_idx = 0
   let mut i = 0
   while i < patch_lines.length() {
@@ -227,26 +245,29 @@ pub fn apply_unified(old_text: String, patch: String) -> String {
   result.join("\n")
 }
 
+///|
 /// A single operation inside a parsed unified-diff hunk.
 priv struct Op2 {
-  kind: Char
-  text: String
+  kind : Char
+  text : String
 }
 
+///|
 /// A parsed unified-diff hunk (header + body operations).
 priv struct Hunk {
-  old_start: Int
-  old_len: Int
-  ops: Array[Op2]
+  old_start : Int32
+  old_len : Int32
+  ops : Array[Op2]
 }
 
+///|
 /// Parses a unified-diff string into a list of `Hunk`s. Header lines
 /// (`---`, `+++`, `diff --git`, `index`) and `@@ ... @@` separators are
 /// consumed; the body lines (` `, `-`, `+`) become `Op2` records.
-fn parse_hunks(patch: String) -> Array[Hunk] {
+fn parse_hunks(patch : String) -> Array[Hunk] {
   let patch_lines = split_lines(patch)
-  let hunks: Array[Hunk] = []
-  let mut cur_ops: Array[Op2] = []
+  let hunks : Array[Hunk] = []
+  let mut cur_ops : Array[Op2] = []
   let mut cur_old_len = 0
   let mut cur_start = 0
   let mut in_hunk = false
@@ -256,9 +277,11 @@ fn parse_hunks(patch: String) -> Array[Hunk] {
     }
     if line.length() >= 2 && line[0] == '@' && line[1] == '@' {
       if in_hunk {
-        hunks.push(
-          Hunk::{ old_start: cur_start, old_len: cur_old_len, ops: cur_ops },
-        )
+        hunks.push(Hunk::{
+          old_start: cur_start,
+          old_len: cur_old_len,
+          ops: cur_ops,
+        })
       }
       cur_start = parse_old_start(line) - 1
       cur_ops = []
@@ -271,29 +294,33 @@ fn parse_hunks(patch: String) -> Array[Hunk] {
     }
     let first = line[0]
     let text = line[1:].to_owned()
-    let kind =
-      if first == ' ' {
-        ' '
-      } else if first == '-' {
-        '-'
-      } else if first == '+' {
-        '+'
-      } else {
-        ' '
-      }
-    cur_ops.push(Op2::{ kind, text })
+    let kind = if first == ' ' {
+      ' '
+    } else if first == '-' {
+      '-'
+    } else if first == '+' {
+      '+'
+    } else {
+      ' '
+    }
+    cur_ops.push(Op2::{ kind, text, })
     if kind == ' ' || kind == '-' {
       cur_old_len = cur_old_len + 1
     }
   }
   if in_hunk {
-    hunks.push(Hunk::{ old_start: cur_start, old_len: cur_old_len, ops: cur_ops })
+    hunks.push(Hunk::{
+      old_start: cur_start,
+      old_len: cur_old_len,
+      ops: cur_ops,
+    })
   }
   hunks
 }
 
+///|
 /// Counts up to `n` leading *context* (` `) lines of a hunk body.
-fn leading_context(ops: Array[Op2], n: Int) -> Int {
+fn leading_context(ops : Array[Op2], n : Int32) -> Int32 {
   let mut c = 0
   for op in ops {
     if op.kind != ' ' {
@@ -307,8 +334,9 @@ fn leading_context(ops: Array[Op2], n: Int) -> Int {
   c
 }
 
+///|
 /// Counts up to `n` trailing *context* (` `) lines of a hunk body.
-fn trailing_context(ops: Array[Op2], n: Int) -> Int {
+fn trailing_context(ops : Array[Op2], n : Int32) -> Int32 {
   let len = ops.length()
   let mut c = 0
   let mut i = len - 1
@@ -326,6 +354,7 @@ fn trailing_context(ops: Array[Op2], n: Int) -> Int {
   c
 }
 
+///|
 /// Applies a unified diff with `patch`/`git apply`-style tolerance for
 /// **offset** (the `@@` line numbers are off) and **fuzz** (some leading /
 /// trailing context lines no longer match).
@@ -338,17 +367,17 @@ fn trailing_context(ops: Array[Op2], n: Int) -> Int {
 /// Returns `Ok(new_text)` on success, or `Err(msg)` if a hunk cannot be placed
 /// within the given tolerance. Smaller offset and smaller fuzz are preferred.
 pub fn apply_unified_fuzzy(
-  old_text: String,
-  patch: String,
-  max_fuzz: Int,
-  max_offset: Int
+  old_text : String,
+  patch : String,
+  max_fuzz : Int32,
+  max_offset : Int32,
 ) -> Result[String, String] {
   let old_lines = split_lines(old_text)
   let hunks = parse_hunks(patch)
   if hunks.length() == 0 {
     return Ok(old_text)
   }
-  let result: Array[String] = []
+  let result : Array[String] = []
   let mut old_pos = 0
   for h in hunks {
     let expected = h.old_start
@@ -359,7 +388,7 @@ pub fn apply_unified_fuzzy(
     for fz = 0; fz <= max_fuzz; fz = fz + 1 {
       let lead = leading_context(ops, fz)
       let trail = trailing_context(ops, fz)
-      let core: Array[String] = []
+      let core : Array[String] = []
       for i = lead; i < len - trail; i = i + 1 {
         let op = ops[i]
         if op.kind == ' ' || op.kind == '-' {
@@ -409,8 +438,8 @@ pub fn apply_unified_fuzzy(
     if !placed {
       return Err(
         "failed to apply hunk near line " +
-          (expected + 1).to_string() +
-          " (offset/fuzz exhausted)",
+        (expected + 1).to_string() +
+        " (offset/fuzz exhausted)",
       )
     }
     for k = old_pos; k < chosen_p; k = k + 1 {
@@ -435,8 +464,9 @@ pub fn apply_unified_fuzzy(
   Ok(result.join("\n"))
 }
 
+///|
 /// Parses the *new-file* starting line number from a `@@ -a,b +c,d @@` header.
-fn parse_new_start(header: String) -> Int {
+fn parse_new_start(header : String) -> Int32 {
   let mut i = 0
   let len = header.length()
   while i < len && header[i].to_int() != '+'.to_int() {
@@ -451,8 +481,9 @@ fn parse_new_start(header: String) -> Int {
   num
 }
 
+///|
 /// Swaps the `-a,b` / `+c,d` ranges inside a `@@ ... @@` header.
-fn reverse_header(h: String) -> String {
+fn reverse_header(h : String) -> String {
   let len = h.length()
   let mut i = 0
   while i < len && h[i] != '-' {
@@ -485,17 +516,25 @@ fn reverse_header(h: String) -> String {
     d = d * 10 + digit_from_char(h[i].to_int())
     i = i + 1
   }
-  "@@ -" + c.to_string() + "," + d.to_string() + " +" + a.to_string() + "," +
-  b.to_string() + " @@"
+  "@@ -" +
+  c.to_string() +
+  "," +
+  d.to_string() +
+  " +" +
+  a.to_string() +
+  "," +
+  b.to_string() +
+  " @@"
 }
 
+///|
 /// Applies a unified diff in the *reverse* direction: given the **new** text
 /// and the patch (old -> new), it reconstructs the **old** text. This mirrors
 /// the behaviour of `patch -R`.
-pub fn apply_unified_reverse(new_text: String, patch: String) -> String {
+pub fn apply_unified_reverse(new_text : String, patch : String) -> String {
   let new_lines = split_lines(new_text)
   let patch_lines = split_lines(patch)
-  let result: Array[String] = []
+  let result : Array[String] = []
   let mut new_idx = 0
   let mut i = 0
   while i < patch_lines.length() {
@@ -535,18 +574,25 @@ pub fn apply_unified_reverse(new_text: String, patch: String) -> String {
   result.join("\n")
 }
 
+///|
 /// Returns the reversed patch (new -> old) by swapping `-`/`+` markers and the
 /// `---`/`+++` and `@@` header ranges. The result can be applied with the
 /// regular `apply_unified`. Equivalent to `patch -R` on the patch file.
-pub fn reverse_unified(patch: String) -> String {
+pub fn reverse_unified(patch : String) -> String {
   let lines = split_lines(patch)
-  let out: Array[String] = []
+  let out : Array[String] = []
   for line in lines {
-    if line.length() >= 4 && line[0] == '-' && line[1] == '-' && line[2] == '-' &&
-       line[3] == ' ' {
+    if line.length() >= 4 &&
+      line[0] == '-' &&
+      line[1] == '-' &&
+      line[2] == '-' &&
+      line[3] == ' ' {
       out.push("+++" + line[3:].to_owned())
-    } else if line.length() >= 4 && line[0] == '+' && line[1] == '+' &&
-       line[2] == '+' && line[3] == ' ' {
+    } else if line.length() >= 4 &&
+      line[0] == '+' &&
+      line[1] == '+' &&
+      line[2] == '+' &&
+      line[3] == ' ' {
       out.push("---" + line[3:].to_owned())
     } else if line.length() >= 2 && line[0] == '@' && line[1] == '@' {
       out.push(reverse_header(line))

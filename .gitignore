@@ -3,6 +3,9 @@
 *.mi
 *.typechecked
 
+# Generated public API snapshots (`moon info`)
+pkg.generated.mbti
+
 # MoonBit build output
 _build/
 

@@ -1,0 +1,30 @@
+name = "yuzhiblue/moon-diff"
+
+version = "0.2.2"
+
+keywords = [
+  "diff",
+  "patch",
+  "myers",
+  "lcs",
+  "text",
+  "unified",
+  "merge",
+  "json",
+  "three-way",
+]
+
+description = "A text diff & patch library for MoonBit: LCS & Myers diff, 5 diff algorithms, unified/git patch apply, 3-way merge, semantic JSON diff, and multi-file tree diff — zero-dependency."
+
+license = "Apache-2.0"
+
+repository = "https://github.com/yuzhiblue/moon-diff"
+
+readme = "README.md"
+
+supported_targets = "+wasm+wasm-gc"
+
+options(
+  exports: [ "diff" ],
+  homepage: "https://github.com/yuzhiblue/moon-diff",
+)

@@ -1,5 +1,0 @@
-{
-  "name": "bench",
-  "is-main": true,
-  "import": ["yuzhiblue/moon-diff/src/diff"]
-}

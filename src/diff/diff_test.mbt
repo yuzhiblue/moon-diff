@@ -1,6 +1,7 @@
 // Copyright 2026 The moon-diff Authors.
 // Licensed under the Apache License, Version 2.0.
 
+///|
 test "identical sequences" {
   let a = ["a", "b", "c"]
   let d = diff(a, a)
@@ -16,6 +17,7 @@ test "identical sequences" {
   assert_eq(non_equal, 0)
 }
 
+///|
 test "simple insert" {
   let a = ["a", "b", "c"]
   let b = ["a", "b", "x", "c"]
@@ -24,6 +26,7 @@ test "simple insert" {
   assert_true(to_old(d) == a)
 }
 
+///|
 test "simple delete" {
   let a = ["a", "b", "c", "d"]
   let b = ["a", "c", "d"]
@@ -32,6 +35,7 @@ test "simple delete" {
   assert_true(to_old(d) == a)
 }
 
+///|
 test "replace block" {
   let a = ["1", "2", "3", "4", "5"]
   let b = ["1", "x", "y", "5"]
@@ -40,6 +44,7 @@ test "replace block" {
   assert_true(to_old(d) == a)
 }
 
+///|
 test "myers matches reconstruction" {
   let a = ["a", "b", "c", "d", "e", "f"]
   let b = ["a", "B", "c", "d", "x", "f"]
@@ -48,12 +53,14 @@ test "myers matches reconstruction" {
   assert_true(to_old(d) == a)
 }
 
+///|
 test "myers vs lcs equivalence on reconstruction" {
   let a = ["the", "quick", "brown", "fox", "jumps"]
   let b = ["the", "slow", "brown", "fox", "sleeps"]
   assert_true(to_new(myers_diff(a, b)) == to_new(diff(a, b)))
 }
 
+///|
 test "unified round trip" {
   let old = "line1\nline2\nline3\nline4\nline5"
   let new = "line1\nLINE2\nline3\nline4\nline5x"
@@ -61,13 +68,15 @@ test "unified round trip" {
   assert_eq(apply_unified(old, patch), new)
 }
 
+///|
 test "empty sequences" {
-  let a: Array[String] = []
+  let a : Array[String] = []
   let d = diff(a, a)
   assert_eq(d.length(), 0)
   assert_eq(to_unified(d, "a", "b", 3), "")
 }
 
+///|
 test "character diff" {
   let old = "kitten"
   let new = "sitting"
@@ -76,6 +85,7 @@ test "character diff" {
   assert_true(to_old(ch).join("") == old)
 }
 
+///|
 test "token diff preserves whitespace" {
   let a = "the cat sat on the mat"
   let b = "the dog sat on a mat"
@@ -84,6 +94,7 @@ test "token diff preserves whitespace" {
   assert_true(to_old(ch).join("") == a)
 }
 
+///|
 test "reverse apply recovers old (patch -R)" {
   let old = "line1\nline2\nline3\nline4\nline5"
   let new = "line1\nLINE2\nline3\nline4\nline5x"
@@ -92,6 +103,7 @@ test "reverse apply recovers old (patch -R)" {
   assert_eq(apply_unified_reverse(new, patch), old)
 }
 
+///|
 test "reverse_unified then forward apply" {
   let old = "a\nb\nc\nd"
   let new = "a\nB\nc\nd\nd2"
@@ -100,20 +112,22 @@ test "reverse_unified then forward apply" {
   assert_eq(apply_unified(new, rev), old)
 }
 
+///|
 test "sha1 known vectors" {
   assert_eq(sha1_hex(""), "da39a3ee5e6b4b0d3255bfef95601890afd80709")
   assert_eq(sha1_hex("abc"), "a9993e364706816aba3e25717850c26c9cd0d89d")
   assert_eq(
     sha1_hex("The quick brown fox jumps over the lazy dog"),
-    "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"
+    "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12",
   )
   // 56-byte input: forces the two-block padding path
   assert_eq(
     sha1_hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
-    "84983e441c3bd26ebaae4aa1f95129e5e54670f1"
+    "84983e441c3bd26ebaae4aa1f95129e5e54670f1",
   )
 }
 
+///|
 test "git diff text round trips" {
   let old = "foo\nbar\nbaz\n"
   let new = "foo\nBAR\nbaz\nqux\n"
@@ -123,12 +137,17 @@ test "git diff text round trips" {
   assert_eq(git_blob_hash(old).length(), 40)
 }
 
+///|
 test "binary diff format" {
   let patch = binary_diff("old bytes", "new bytes", "data.bin")
-  assert_eq(patch.contains("Binary files a/data.bin and b/data.bin differ"), true)
+  assert_eq(
+    patch.contains("Binary files a/data.bin and b/data.bin differ"),
+    true,
+  )
   assert_eq(patch.contains("index "), true)
 }
 
+///|
 test "git_diff_text header structure" {
   // Pins the git header *layout* (the `diff --git` line and the `index
   // <old>..<new> 100644` line). The hash values themselves are locked by
@@ -142,72 +161,82 @@ test "git_diff_text header structure" {
   let oh = git_blob_hash(old)
   let nh = git_blob_hash(new)
   let header = "diff --git a/file.txt b/file.txt\n" +
-    "index " + oh + ".." + nh + " 100644\n"
+    "index " +
+    oh +
+    ".." +
+    nh +
+    " 100644\n"
   assert_eq(patch.contains(header), true)
 }
 
+///|
 test "binary_diff header structure" {
   // A binary diff is fully deterministic, so we pin the *entire* output.
   let patch = binary_diff("old bytes", "new bytes", "data.bin")
   let oh = git_blob_hash("old bytes")
   let nh = git_blob_hash("new bytes")
   let expected = "diff --git a/data.bin b/data.bin\n" +
-    "index " + oh + ".." + nh + " 100644\n" +
+    "index " +
+    oh +
+    ".." +
+    nh +
+    " 100644\n" +
     "Binary files a/data.bin and b/data.bin differ\n"
   assert_eq(patch, expected)
 }
 
+///|
 test "fuzzy apply with offset" {
   let old = "a\nb\nc\nd\ne\nf\ng"
   let new = "a\nb\nc\nd\nX\nf\ng"
   // patch claims the change is at line 7, but it is really at line 5
-  let patch =
-    "@@ -7,3 +7,3 @@\n d\n-e\n+X\n f\n"
-  let got =
-    match apply_unified_fuzzy(old, patch, 0, 3) {
-      Ok(x) => x
-      Err(m) => m
-    }
+  let patch = "@@ -7,3 +7,3 @@\n d\n-e\n+X\n f\n"
+  let got = match apply_unified_fuzzy(old, patch, 0, 3) {
+    Ok(x) => x
+    Err(m) => m
+  }
   assert_eq(got, new)
 }
 
+///|
 test "fuzzy apply with fuzz" {
   // first context line is stale ("ONE"); core still matches with fuzz
   let old = "one\ntwo\nthree\nfour\nfive"
   let new = "one\nTWO\nthree\nfour\nfive"
-  let patch =
-    "@@ -1,5 +1,5 @@\n ONE\n-two\n+TWO\n three\n four\n five\n"
-  let got =
-    match apply_unified_fuzzy(old, patch, 2, 0) {
-      Ok(x) => x
-      Err(m) => m
-    }
+  let patch = "@@ -1,5 +1,5 @@\n ONE\n-two\n+TWO\n three\n four\n five\n"
+  let got = match apply_unified_fuzzy(old, patch, 2, 0) {
+    Ok(x) => x
+    Err(m) => m
+  }
   assert_eq(got, new)
 }
 
+///|
 test "fuzzy apply fails when tolerance exceeded" {
   let old = "a\nb\nc\nd\ne"
   let patch = "@@ -1,3 +1,3 @@\n x\n-y\n+Z\n z\n"
-  let ok =
-    match apply_unified_fuzzy(old, patch, 0, 0) {
-      Ok(_) => true
-      Err(_) => false
-    }
+  let ok = match apply_unified_fuzzy(old, patch, 0, 0) {
+    Ok(_) => true
+    Err(_) => false
+  }
   assert_eq(ok, false)
 }
 
+///|
 test "word_diff intra-line highlight" {
   let s = word_diff("the cat sat on the mat", "the dog sat on a mat")
   // insertions and deletions are interleaved by the token diff
   assert_eq(s, "the {+dog+}[-cat-] sat on {+a+}[-the-] mat")
 }
 
+///|
 test "word_diff_html marks del and ins" {
   let (o, n) = word_diff_html("the cat sat", "the dog sat")
   assert_eq(o, "the <del>cat</del> sat")
   assert_eq(n, "the <ins>dog</ins> sat")
 }
 
+///|
 test "merge3 clean non-overlapping" {
   let base = "1\n2\n3"
   let ours = "1\n2\n3\n4"
@@ -217,6 +246,7 @@ test "merge3 clean non-overlapping" {
   assert_eq(n, 0)
 }
 
+///|
 test "merge3 emits conflict markers" {
   let base = "1\n2\n3\n4\n5"
   let ours = "1\n2\nX\n4\n5"
@@ -228,6 +258,7 @@ test "merge3 emits conflict markers" {
   assert_eq(merged.contains(">>>>>>> theirs"), true)
 }
 
+///|
 test "merge3 resolve ours drops markers" {
   let base = "1\n2\n3\n4\n5"
   let ours = "1\n2\nX\n4\n5"
@@ -239,6 +270,7 @@ test "merge3 resolve ours drops markers" {
   assert_eq(resolved.contains("X"), true)
 }
 
+///|
 test "all algorithms reconstruct" {
   let a = ["the", "quick", "brown", "fox"]
   let b = ["the", "slow", "red", "fox", "here"]
@@ -256,6 +288,7 @@ test "all algorithms reconstruct" {
   }
 }
 
+///|
 test "json diff produces patch" {
   let patch = match json_diff_text("{\"a\":1}", "{\"a\":2}") {
     Ok(s) => s
@@ -265,21 +298,27 @@ test "json diff produces patch" {
   assert_eq(patch.contains("/a"), true)
 }
 
+///|
 test "parse_json ok and fail" {
   assert_eq(parse_json("{\"x\":[1,true,null]}") is Ok(_), true)
   assert_eq(parse_json("not json") is Ok(_), false)
 }
 
+///|
 test "json round trip equal" {
   let j = match parse_json("{\"x\":[1,true,null]}") {
     Ok(v) => v
     Err(_) => json_null()
   }
   let s = json_to_string(j)
-  let j2 = match parse_json(s) { Ok(v) => v; Err(_) => json_null() }
+  let j2 = match parse_json(s) {
+    Ok(v) => v
+    Err(_) => json_null()
+  }
   assert_eq(json_equal(j, j2), true)
 }
 
+///|
 test "tree diff and patch apply round trip" {
   let old_fs = [("a.txt", "1\n2\n3"), ("b.txt", "x\ny")]
   let new_fs = [("a.txt", "1\n2\n3\n4"), ("c.txt", "hello")]
@@ -308,6 +347,7 @@ test "tree diff and patch apply round trip" {
   }
 }
 
+///|
 test "tree diff summary" {
   let old_fs = [("a.txt", "1\n2\n3")]
   let new_fs = [("a.txt", "1\n2\n3\n4"), ("b.txt", "x")]
@@ -316,8 +356,9 @@ test "tree diff summary" {
   assert_eq(s.contains("files changed"), true)
 }
 
+///|
 test "tree diff add file with trailing newline round trips" {
-  let old_fs: Array[(String, String)] = []
+  let old_fs : Array[(String, String)] = []
   let new_fs = [("new.txt", "hello\nworld\n")]
   let patch = render_tree_patch(old_fs, new_fs, 50)
   match apply_tree_patch(old_fs, patch) {
@@ -334,6 +375,7 @@ test "tree diff add file with trailing newline round trips" {
   }
 }
 
+///|
 test "new file patch has git-conformant zero old count" {
   // A brand-new file has no old lines, so the hunk header must be
   // `@@ -1,0 +1,N @@` (0 old lines). The naive `diff_lines("", nc)` produces a
@@ -345,6 +387,7 @@ test "new file patch has git-conformant zero old count" {
   assert_eq(patch.contains("@@ -1,1 +1,0 @@"), false)
 }
 
+///|
 test "tree diff rename with content change round trips" {
   let old_fs = [("old.txt", "line1\nline2\nline3\n")]
   let new_fs = [("new.txt", "line1\nCHANGED\nline3\n")]
@@ -368,6 +411,7 @@ test "tree diff rename with content change round trips" {
   }
 }
 
+///|
 test "git blob hash matches git for utf8" {
   // Reference values produced by `git hash-object` (SHA-1 of
   // "blob <byte-length>\0<content>" in UTF-8). ASCII and CJK both match.
@@ -379,6 +423,7 @@ test "git blob hash matches git for utf8" {
   )
 }
 
+///|
 test "unified_to_html marks ins and del" {
   let html = unified_to_html("a\nb", "a\nB", 3)
   assert_eq(html.contains("class=\"ins\""), true)
@@ -389,19 +434,18 @@ test "unified_to_html marks ins and del" {
   assert_eq(page.contains("class=\"ins\""), true)
 }
 
+///|
 test "prefix/suffix pruning preserves round-trip for all algorithms" {
   // A large common prefix and suffix with only the middle changed. The trimming
   // optimization must leave the reconstructed inputs byte-for-byte identical for
   // every algorithm (the trimmed lines are always `Equal`).
   let a = [
-    "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep",
-    "OLD", "mid", "x",
-    "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail",
+    "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "OLD",
+    "mid", "x", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail",
   ]
   let b = [
-    "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep",
-    "NEW", "mid", "y",
-    "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail",
+    "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "keep", "NEW",
+    "mid", "y", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail", "tail",
   ]
   let names = ["lcs", "myers", "patience", "histogram", "linear"]
   for name in names {
@@ -411,6 +455,7 @@ test "prefix/suffix pruning preserves round-trip for all algorithms" {
   }
 }
 
+///|
 test "unified stat summary format" {
   let ch = diff_lines("a\nb\nc", "a\nB\nc\nd")
   // b -> B is 1 delete + 1 insert, and d is 1 insert => 3 changed lines
@@ -420,6 +465,7 @@ test "unified stat summary format" {
   assert_eq(to_unified_stat(none, "g.txt", 40), "g.txt | 0")
 }
 
+///|
 test "unified stat histogram scales large changes" {
   let mut old = ""
   let mut new = ""
@@ -434,6 +480,7 @@ test "unified stat histogram scales large changes" {
   assert_eq(s.length() - prefix.length(), 40)
 }
 
+///|
 test "ignore whitespace and case reports no spurious changes" {
   let ch = diff_lines_ignore("a B c", "A  b  C", true, true)
   let mut diffs = 0
@@ -446,6 +493,7 @@ test "ignore whitespace and case reports no spurious changes" {
   assert_eq(diffs, 0)
 }
 
+///|
 test "ignore whitespace still catches real content changes" {
   let ch = diff_lines_ignore("foo bar", "foo baz", true, false)
   let mut diffs = 0

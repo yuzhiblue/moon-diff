@@ -1,0 +1,10 @@
+import {
+  "yuzhiblue/moon-diff/src/diff",
+  "moonbitlang/core/env",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  name: "cli",
+)

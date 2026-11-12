@@ -17,13 +17,15 @@
 //   * `ratio` always stays within [0, 1] (and is 1 for identical strings).
 // ---------------------------------------------------------------------------
 
+///|
 /// Mutable PRNG state, held in a 1-element array so mutation persists across
 /// calls (MoonBit passes structs by value).
-fn rng_new(seed: Int) -> Array[Int] {
+fn rng_new(seed : Int32) -> Array[Int32] {
   [if seed == 0 { 0x9e3779b9 } else { seed }]
 }
 
-fn rng_next(s: Array[Int]) -> Int {
+///|
+fn rng_next(s : Array[Int32]) -> Int32 {
   let mut x = s[0]
   x = x ^ (x << 13)
   x = x ^ (x >> 17)
@@ -32,7 +34,8 @@ fn rng_next(s: Array[Int]) -> Int {
   x
 }
 
-fn rng_int(s: Array[Int], n: Int) -> Int {
+///|
+fn rng_int(s : Array[Int32], n : Int32) -> Int32 {
   if n <= 0 {
     return 0
   }
@@ -41,23 +44,27 @@ fn rng_int(s: Array[Int], n: Int) -> Int {
   pos % n
 }
 
-fn rng_bool(s: Array[Int]) -> Bool {
+///|
+fn rng_bool(s : Array[Int32]) -> Bool {
   rng_int(s, 2) == 0
 }
 
+///|
 /// Picks a uniformly random element of a non-empty `Array[String]`.
-fn rng_pick(s: Array[Int], a: Array[String]) -> String {
+fn rng_pick(s : Array[Int32], a : Array[String]) -> String {
   a[rng_int(s, a.length())]
 }
 
+///|
 /// Mixed alphabet: Latin words, spaces, digits, and CJK characters — exercises
 /// both the ASCII and the Unicode code paths of the tokeniser.
-let fuzz_alpha: Array[String] = [
+let fuzz_alpha : Array[String] = [
   "a", "b", "c", " ", "\n", "x", "y", "z", " ", "the", " ", "我", "爱", "北",
   "京", "的", "。", "！", "，", "1", "2",
 ]
 
-fn rng_text(s: Array[Int], maxlen: Int) -> String {
+///|
+fn rng_text(s : Array[Int32], maxlen : Int32) -> String {
   let n = rng_int(s, maxlen + 1)
   let mut out = ""
   for i = 0; i < n; i = i + 1 {
@@ -66,18 +73,20 @@ fn rng_text(s: Array[Int], maxlen: Int) -> String {
   out
 }
 
+///|
 /// Random sequence of words drawn from a small vocabulary, so diffs are
 /// non-trivial and every algorithm is exercised.
-fn rng_seq(s: Array[Int], n: Int, vocab: Array[String]) -> Array[String] {
-  let out: Array[String] = []
+fn rng_seq(s : Array[Int32], n : Int32, vocab : Array[String]) -> Array[String] {
+  let out : Array[String] = []
   for i = 0; i < n; i = i + 1 {
     out.push(rng_pick(s, vocab))
   }
   out
 }
 
+///|
 /// Random JSON value (bounded depth so it stays small and fast to diff/apply).
-fn rng_json(s: Array[Int], depth: Int) -> Json {
+fn rng_json(s : Array[Int32], depth : Int32) -> Json {
   if depth > 3 {
     return json_str(rng_text(s, 6))
   }
@@ -92,14 +101,14 @@ fn rng_json(s: Array[Int], depth: Int) -> Json {
     json_str(rng_text(s, 6))
   } else if r < 7 {
     let len = rng_int(s, 4)
-    let arr: Array[Json] = []
+    let arr : Array[Json] = []
     for i = 0; i < len; i = i + 1 {
       arr.push(rng_json(s, depth + 1))
     }
     json_arr(arr)
   } else {
     let len = rng_int(s, 4)
-    let obj: Array[(String, Json)] = []
+    let obj : Array[(String, Json)] = []
     for i = 0; i < len; i = i + 1 {
       obj.push(("k" + i.to_string(), rng_json(s, depth + 1)))
     }
@@ -107,8 +116,9 @@ fn rng_json(s: Array[Int], depth: Int) -> Json {
   }
 }
 
+///|
 /// Counts non-`Equal` operations in an edit script (the edit distance).
-fn count_dist(ch: Array[Change[String]]) -> Int {
+fn count_dist(ch : Array[Change[String]]) -> Int32 {
   let mut d = 0
   for c in ch {
     match c {
@@ -119,6 +129,7 @@ fn count_dist(ch: Array[Change[String]]) -> Int {
   d
 }
 
+///|
 test "fuzz all algorithms reconstruct" {
   let rng = rng_new(12345)
   let vocab = ["alpha", "beta", "gamma", "x", "y", "z", ""]
@@ -140,6 +151,7 @@ test "fuzz all algorithms reconstruct" {
   }
 }
 
+///|
 test "fuzz minimal distance matches across lcs/myers/linear" {
   let rng = rng_new(777)
   let vocab = ["a", "b", "c", "d", "e"]
@@ -154,6 +166,7 @@ test "fuzz minimal distance matches across lcs/myers/linear" {
   }
 }
 
+///|
 test "fuzz json patch round trip" {
   let rng = rng_new(2024)
   for _t = 0; _t < 200; _t = _t + 1 {
@@ -170,6 +183,7 @@ test "fuzz json patch round trip" {
   }
 }
 
+///|
 test "fuzz json patch text round trip" {
   let rng = rng_new(99)
   for _t = 0; _t < 150; _t = _t + 1 {
@@ -194,12 +208,13 @@ test "fuzz json patch text round trip" {
   }
 }
 
+///|
 test "fuzz tree patch round trip" {
   let rng = rng_new(555)
   let files = ["a.txt", "b.txt", "c.txt", "dir/d.txt", "e.md"]
   for _t = 0; _t < 200; _t = _t + 1 {
-    let old_fs: Array[(String, String)] = []
-    let new_fs: Array[(String, String)] = []
+    let old_fs : Array[(String, String)] = []
+    let new_fs : Array[(String, String)] = []
     for f in files {
       if rng_bool(rng) {
         old_fs.push((f, rng_text(rng, 30)))
@@ -245,6 +260,7 @@ test "fuzz tree patch round trip" {
   }
 }
 
+///|
 test "fuzz unicode tokenizer reconstruct" {
   let rng = rng_new(31415)
   for _t = 0; _t < 300; _t = _t + 1 {
@@ -256,6 +272,7 @@ test "fuzz unicode tokenizer reconstruct" {
   }
 }
 
+///|
 test "chinese tokenizer splits per character" {
   let toks = tokenize_unicode("我爱北京")
   assert_eq(toks.length(), 4)
@@ -263,21 +280,25 @@ test "chinese tokenizer splits per character" {
   assert_eq(toks[3], "京")
 }
 
+///|
 test "chinese diff detects single char change" {
   let ch = diff_tokens_unicode("我爱北京", "我爱南京")
   assert_eq(changes_to_string(ch), "我爱南京")
   assert_eq(to_old(ch).join(""), "我爱北京")
 }
 
+///|
 test "ratio identical is 1" {
   assert_true(ratio("hello", "hello") == 1.0)
   assert_true(ratio("我爱北京", "我爱北京") == 1.0)
 }
 
+///|
 test "ratio disjoint is 0" {
   assert_true(ratio("abc", "xyz") == 0.0)
 }
 
+///|
 test "ratio bounds and cjk monotonic" {
   let r1 = ratio("我爱北京", "我爱北京")
   let r2 = ratio("我爱北京", "我爱南京")
@@ -286,6 +307,7 @@ test "ratio bounds and cjk monotonic" {
   assert_true(r1 <= 1.0)
 }
 
+///|
 test "fuzz ratio in [0,1]" {
   let rng = rng_new(8675309)
   for _t = 0; _t < 300; _t = _t + 1 {

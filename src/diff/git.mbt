@@ -1,28 +1,36 @@
 // Copyright 2026 The moon-diff Authors.
 // Licensed under the Apache License, Version 2.0.
 
+///|
 /// 32-bit rotate-left helpers (MoonBit `Int` is 32-bit; `>>` is arithmetic,
 /// so we mask the right-shifted part to emulate a logical shift).
 // All SHA-1 math is mod 2^32. MoonBit `Int` may be wider than 32 bits, so we
 // mask after every arithmetic/shift to keep values in the low 32 bits. On a
 // true 32-bit `Int` this is a no-op (0xffffffff == -1).
-fn mask32(x: Int) -> Int {
+fn mask32(x : Int32) -> Int32 {
   x & 0xffffffff
 }
-fn rotl1(x: Int) -> Int {
+
+///|
+fn rotl1(x : Int32) -> Int32 {
   mask32((x << 1) | ((x >> 31) & 0x1))
 }
-fn rotl5(x: Int) -> Int {
+
+///|
+fn rotl5(x : Int32) -> Int32 {
   mask32((x << 5) | ((x >> 27) & 0x1f))
 }
-fn rotl30(x: Int) -> Int {
+
+///|
+fn rotl30(x : Int32) -> Int32 {
   mask32((x << 30) | ((x >> 2) & 0x3fffffff))
 }
 
+///|
 /// SHA-1 over a sequence of bytes stored as `Int` (each in 0..255).
-fn sha1(msg: Array[Int]) -> Array[Int] {
+fn sha1(msg : Array[Int32]) -> Array[Int32] {
   let bit_len = msg.length() * 8
-  let data: Array[Int] = []
+  let data : Array[Int32] = []
   for b in msg {
     data.push(b)
   }
@@ -48,12 +56,14 @@ fn sha1(msg: Array[Int]) -> Array[Int] {
 
   let mut i = 0
   while i < data.length() {
-    let w: Array[Int] = Array::make(80, 0)
+    let w : Array[Int32] = Array::make(80, 0)
     for t = 0; t < 16; t = t + 1 {
       let base = i + t * 4
       w[t] = mask32(
-        (data[base] << 24) | (data[base + 1] << 16) |
-        (data[base + 2] << 8) | data[base + 3],
+        (data[base] << 24) |
+        (data[base + 1] << 16) |
+        (data[base + 2] << 8) |
+        data[base + 3],
       )
     }
     for t = 16; t < 80; t = t + 1 {
@@ -101,27 +111,31 @@ fn sha1(msg: Array[Int]) -> Array[Int] {
   [h0, h1, h2, h3, h4]
 }
 
+///|
 /// Renders SHA-1 words as a 40-character lowercase hex string.
-fn to_hex(words: Array[Int]) -> String {
+fn to_hex(words : Array[Int32]) -> String {
   let hex_chars = "0123456789abcdef"
-  let out: Array[String] = []
+  let out : Array[String] = []
   let nibbles = [28, 24, 20, 16, 12, 8, 4, 0]
   for w in words {
     for s in nibbles {
       let nibble = (w >> s) & 0xf
-      out.push(String::from_array([hex_chars[nibble].to_int().unsafe_to_char()]))
+      out.push(
+        String::from_array([hex_chars[nibble].to_int().unsafe_to_char()]),
+      )
     }
   }
   out.join("")
 }
 
+///|
 /// Encodes a string as its UTF-8 byte sequence, returned as `Int`s in 0..255.
 /// A MoonBit `String` is indexed by *code point*, so each scalar must be
 /// expanded to its UTF-8 bytes manually (1 byte for ASCII, 2/3/4 bytes for a
 /// multibyte char). This is what makes `sha1_hex` / `git_blob_hash` correct for
 /// Chinese, Japanese, Korean and any non-ASCII text.
-fn utf8_bytes(s: String) -> Array[Int] {
-  let out: Array[Int] = []
+fn utf8_bytes(s : String) -> Array[Int32] {
+  let out : Array[Int32] = []
   let n = s.length()
   for i = 0; i < n; i = i + 1 {
     let cp = s[i].to_int()
@@ -144,18 +158,20 @@ fn utf8_bytes(s: String) -> Array[Int] {
   out
 }
 
+///|
 /// SHA-1 (hex) of the UTF-8 bytes of `s` (correct for multibyte text).
-pub fn sha1_hex(s: String) -> String {
+pub fn sha1_hex(s : String) -> String {
   to_hex(sha1(utf8_bytes(s)))
 }
 
+///|
 /// Computes the git *blob* SHA-1 of a text file's content, i.e. the hash used
 /// in a git `index` line. The result matches `git` for **any** UTF-8 content,
 /// because the `blob <byte-length>\0` prefix uses the *byte* length and the
 /// content is fed byte-by-byte in UTF-8 (not code-point) order.
-pub fn git_blob_hash(text: String) -> String {
+pub fn git_blob_hash(text : String) -> String {
   let bytes = utf8_bytes(text)
-  let msg: Array[Int] = []
+  let msg : Array[Int32] = []
   let prefix = "blob " + bytes.length().to_string()
   for i = 0; i < prefix.length(); i = i + 1 {
     msg.push(prefix[i].to_int() & 0xff)
@@ -167,27 +183,30 @@ pub fn git_blob_hash(text: String) -> String {
   to_hex(sha1(msg))
 }
 
+///|
 /// Builds the `diff --git a/X b/Y` header line shared by `git_diff_text`,
 /// `binary_diff` and the file-level headers emitted by `dir.mbt`.
-fn diff_git_line(a_path: String, b_path: String) -> String {
+fn diff_git_line(a_path : String, b_path : String) -> String {
   "diff --git a/" + a_path + " b/" + b_path + "\n"
 }
 
+///|
 /// Builds the `index <old_sha>..<new_sha> 100644` line shared by `git_diff_text`
 /// and `binary_diff`.
-fn git_index_header(old_hash: String, new_hash: String) -> String {
+fn git_index_header(old_hash : String, new_hash : String) -> String {
   "index " + old_hash + ".." + new_hash + " 100644\n"
 }
 
+///|
 /// Renders a git-style unified diff with a `diff --git` header and an `index`
 /// line carrying the blob SHA-1s (matching `git diff` output). Pass names such
 /// as `"a/file.txt"` / `"b/file.txt"`.
 pub fn git_diff_text(
-  old_text: String,
-  new_text: String,
-  old_name: String,
-  new_name: String,
-  context: Int
+  old_text : String,
+  new_text : String,
+  old_name : String,
+  new_name : String,
+  context : Int32,
 ) -> String {
   let changes = diff_lines(old_text, new_text)
   let body = to_unified(changes, old_name, new_name, context)
@@ -196,11 +215,17 @@ pub fn git_diff_text(
   diff_git_line(old_name, new_name) + git_index_header(oh, nh) + body
 }
 
+///|
 /// Produces a git-style binary diff (`Binary files ... differ`) with proper
 /// blob SHA-1s in the `index` line.
-pub fn binary_diff(old: String, new: String, name: String) -> String {
+pub fn binary_diff(old : String, new : String, name : String) -> String {
   let oh = git_blob_hash(old)
   let nh = git_blob_hash(new)
-  diff_git_line(name, name) + git_index_header(oh, nh) +
-  "Binary files a/" + name + " and b/" + name + " differ\n"
+  diff_git_line(name, name) +
+  git_index_header(oh, nh) +
+  "Binary files a/" +
+  name +
+  " and b/" +
+  name +
+  " differ\n"
 }

@@ -1,6 +1,7 @@
 // Copyright 2026 The moon-diff Authors.
 // Licensed under the Apache License, Version 2.0.
 
+///|
 /// Selects which diff strategy to use. All strategies return the same
 /// `Array[Change[String]]` representation, so they are interchangeable.
 pub enum DiffAlgorithm {
@@ -16,6 +17,7 @@ pub enum DiffAlgorithm {
   Linear
 }
 
+///|
 /// Dispatches to the requested diff algorithm. Every branch returns a valid
 /// edit script over the two line sequences.
 ///
@@ -24,9 +26,9 @@ pub enum DiffAlgorithm {
 /// always `Equal`, so skipping them lets the underlying algorithm run only on
 /// the usually much smaller middle section without changing the result.
 pub fn diff_algorithm(
-  algo: DiffAlgorithm,
-  a: Array[String],
-  b: Array[String]
+  algo : DiffAlgorithm,
+  a : Array[String],
+  b : Array[String],
 ) -> Array[Change[String]] {
   let n = a.length()
   let m = b.length()
@@ -44,7 +46,7 @@ pub fn diff_algorithm(
     return diff_algorithm_inner(algo, a, b)
   }
   let mid = diff_algorithm_inner(algo, slice(a, p, n - s), slice(b, p, m - s))
-  let out: Array[Change[String]] = []
+  let out : Array[Change[String]] = []
   for i = 0; i < p; i = i + 1 {
     out.push(Equal(a[i]))
   }
@@ -57,12 +59,13 @@ pub fn diff_algorithm(
   out
 }
 
+///|
 /// The algorithm dispatch used by `diff_algorithm` after common prefix/suffix
 /// trimming. Kept private so the trimming layer stays the single entry point.
 fn diff_algorithm_inner(
-  algo: DiffAlgorithm,
-  a: Array[String],
-  b: Array[String]
+  algo : DiffAlgorithm,
+  a : Array[String],
+  b : Array[String],
 ) -> Array[Change[String]] {
   match algo {
     LCS => diff(a, b)
@@ -73,9 +76,10 @@ fn diff_algorithm_inner(
   }
 }
 
+///|
 /// Resolves an algorithm name (e.g. `"lcs"`, `"myers"`) to a `DiffAlgorithm`.
 /// Unknown names fall back to the linear-space Hirschberg algorithm.
-pub fn diff_algorithm_by_name(name: String) -> DiffAlgorithm {
+pub fn diff_algorithm_by_name(name : String) -> DiffAlgorithm {
   match name {
     "lcs" => LCS
     "myers" => Myers
@@ -85,9 +89,10 @@ pub fn diff_algorithm_by_name(name: String) -> DiffAlgorithm {
   }
 }
 
+///|
 /// Returns `arr[s..e)` as a fresh array.
-fn slice(arr: Array[String], s: Int, e: Int) -> Array[String] {
-  let out: Array[String] = []
+fn slice(arr : Array[String], s : Int32, e : Int32) -> Array[String] {
+  let out : Array[String] = []
   let mut i = s
   while i < e {
     out.push(arr[i])
@@ -100,15 +105,16 @@ fn slice(arr: Array[String], s: Int, e: Int) -> Array[String] {
 /// Patience diff
 /// ---------------------------------------------------------------------------
 
+///|
 /// Longest increasing subsequence (by the second component) of `matches`, used
 /// as the patience "skeleton" of common unique lines.
-fn lis_matches(matches: Array[(Int, Int)]) -> Array[(Int, Int)] {
+fn lis_matches(matches : Array[(Int32, Int32)]) -> Array[(Int32, Int32)] {
   let m = matches.length()
   if m == 0 {
     return []
   }
-  let dp: Array[Int] = Array::make(m, 1)
-  let prev: Array[Int] = Array::make(m, -1)
+  let dp : Array[Int32] = Array::make(m, 1)
+  let prev : Array[Int32] = Array::make(m, -1)
   let mut best = 0
   for k = 0; k < m; k = k + 1 {
     for t = 0; t < k; t = t + 1 {
@@ -121,7 +127,7 @@ fn lis_matches(matches: Array[(Int, Int)]) -> Array[(Int, Int)] {
       best = k
     }
   }
-  let out: Array[(Int, Int)] = []
+  let out : Array[(Int32, Int32)] = []
   let mut cur = best
   while cur != -1 {
     out.push(matches[cur])
@@ -130,22 +136,23 @@ fn lis_matches(matches: Array[(Int, Int)]) -> Array[(Int, Int)] {
   reversed(out)
 }
 
+///|
 /// Recursive patience diff over sub-ranges `[a0, a1)` × `[b0, b1)`.
 fn patience_rec(
-  a: Array[String],
-  a0: Int,
-  a1: Int,
-  b: Array[String],
-  b0: Int,
-  b1: Int
+  a : Array[String],
+  a0 : Int32,
+  a1 : Int32,
+  b : Array[String],
+  b0 : Int32,
+  b1 : Int32,
 ) -> Array[Change[String]] {
   let alen = a1 - a0
   let blen = b1 - b0
   if alen <= 1 || blen <= 1 {
     return diff(slice(a, a0, a1), slice(b, b0, b1))
   }
-  let countA: Array[(String, Int)] = []
-  let countB: Array[(String, Int)] = []
+  let countA : Array[(String, Int32)] = []
+  let countB : Array[(String, Int32)] = []
   for i = a0; i < a1; i = i + 1 {
     imap_inc(countA, a[i])
   }
@@ -153,14 +160,14 @@ fn patience_rec(
     imap_inc(countB, b[j])
   }
   // first index of each unique (count == 1) line in b range
-  let b_index: Array[(String, Int)] = []
+  let b_index : Array[(String, Int32)] = []
   for j = b0; j < b1; j = j + 1 {
     let x = b[j]
     if imap_get(countB, x) == 1 && imap_get(b_index, x) == 0 {
       b_index.push((x, j + 1))
     }
   }
-  let matches: Array[(Int, Int)] = []
+  let matches : Array[(Int32, Int32)] = []
   for i = a0; i < a1; i = i + 1 {
     let x = a[i]
     if imap_get(countA, x) == 1 && imap_get(countB, x) == 1 {
@@ -174,7 +181,7 @@ fn patience_rec(
     return diff(slice(a, a0, a1), slice(b, b0, b1))
   }
   let skel = lis_matches(matches)
-  let out: Array[Change[String]] = []
+  let out : Array[Change[String]] = []
   let mut pa = a0
   let mut pb = b0
   for m in skel {
@@ -194,13 +201,14 @@ fn patience_rec(
   out
 }
 
+///|
 /// Patience diff (Bram Cohen's algorithm). Finds lines that are *unique* in both
 /// inputs, takes their longest increasing subsequence as an alignment skeleton,
 /// and recurses into the gaps. Patience diff tends to produce more "human"
 /// alignments than plain LCS for sequences with repeated lines.
 pub fn patience_diff(
-  a: Array[String],
-  b: Array[String]
+  a : Array[String],
+  b : Array[String],
 ) -> Array[Change[String]] {
   patience_rec(a, 0, a.length(), b, 0, b.length())
 }
@@ -209,8 +217,9 @@ pub fn patience_diff(
 /// Histogram diff (git-style)
 /// ---------------------------------------------------------------------------
 
+///|
 /// First index of `x` in `arr[s..e)`, or `s` if absent.
-fn first_index(arr: Array[String], s: Int, e: Int, x: String) -> Int {
+fn first_index(arr : Array[String], s : Int32, e : Int32, x : String) -> Int32 {
   let mut i = s
   while i < e {
     if arr[i] == x {
@@ -221,28 +230,29 @@ fn first_index(arr: Array[String], s: Int, e: Int, x: String) -> Int {
   s
 }
 
+///|
 /// Recursive histogram diff: pick the line that appears most often in `b`'s
 /// range (and also in `a`'s range) as an anchor, emit it as `Equal`, and recurse
 /// into the left/right gaps. Falls back to LCS when no common line exists.
 fn histogram_rec(
-  a: Array[String],
-  a0: Int,
-  a1: Int,
-  b: Array[String],
-  b0: Int,
-  b1: Int
+  a : Array[String],
+  a0 : Int32,
+  a1 : Int32,
+  b : Array[String],
+  b0 : Int32,
+  b1 : Int32,
 ) -> Array[Change[String]] {
   let alen = a1 - a0
   let blen = b1 - b0
   if alen == 0 {
-    let out: Array[Change[String]] = []
+    let out : Array[Change[String]] = []
     for j = b0; j < b1; j = j + 1 {
       out.push(Insert(b[j]))
     }
     return out
   }
   if blen == 0 {
-    let out: Array[Change[String]] = []
+    let out : Array[Change[String]] = []
     for i = a0; i < a1; i = i + 1 {
       out.push(Delete(a[i]))
     }
@@ -254,7 +264,7 @@ fn histogram_rec(
     }
     return [Delete(a[a0]), Insert(b[b0])]
   }
-  let countB: Array[(String, Int)] = []
+  let countB : Array[(String, Int32)] = []
   for j = b0; j < b1; j = j + 1 {
     imap_inc(countB, b[j])
   }
@@ -272,7 +282,7 @@ fn histogram_rec(
   if best_cnt == 0 {
     return diff(slice(a, a0, a1), slice(b, b0, b1))
   }
-  let out: Array[Change[String]] = []
+  let out : Array[Change[String]] = []
   let left = histogram_rec(a, a0, best_i, b, b0, best_j)
   for c in left {
     out.push(c)
@@ -285,12 +295,13 @@ fn histogram_rec(
   out
 }
 
+///|
 /// Histogram diff, approximating Git's `diff --histogram`. Repeated lines are
 /// anchored by frequency, which often yields cleaner diffs than LCS for source
 /// code with many blank/brace lines.
 pub fn histogram_diff(
-  a: Array[String],
-  b: Array[String]
+  a : Array[String],
+  b : Array[String],
 ) -> Array[Change[String]] {
   histogram_rec(a, 0, a.length(), b, 0, b.length())
 }
@@ -299,6 +310,7 @@ pub fn histogram_diff(
 /// Linear-space minimal edit script (Hirschberg)
 /// ---------------------------------------------------------------------------
 
+///|
 /// Last column of the Levenshtein DP: `result[i]` is the edit distance between
 /// `a[0..i]` and `b`. Computed in `O(|a|·|b|)` time and `O(|a|)` space.
 /// Computes the *pure insertion/deletion* distance between `a[0..i]` and `b`
@@ -306,14 +318,14 @@ pub fn histogram_diff(
 /// Levenshtein distance model that matches the edit scripts produced by `diff`
 /// (LCS), so Hirschberg's split picks the row that minimises `Delete + Insert`
 /// exactly, and the reconstructed script has the same edit distance as `diff`.
-fn edit_last_row(a: Array[String], b: Array[String]) -> Array[Int] {
+fn edit_last_row(a : Array[String], b : Array[String]) -> Array[Int32] {
   let n = a.length()
   let m = b.length()
-  let mut prev: Array[Int] = Array::make(n + 1, 0)
+  let mut prev : Array[Int32] = Array::make(n + 1, 0)
   for i = 0; i <= n; i = i + 1 {
     prev[i] = i
   }
-  let mut cur: Array[Int] = Array::make(n + 1, 0)
+  let mut cur : Array[Int32] = Array::make(n + 1, 0)
   for j = 0; j < m; j = j + 1 {
     cur[0] = j + 1
     for i = 0; i < n; i = i + 1 {
@@ -332,17 +344,18 @@ fn edit_last_row(a: Array[String], b: Array[String]) -> Array[Int] {
   prev
 }
 
+///|
 /// `result[i]` is the edit distance between `a[i..]` and `b`. Computed in
 /// `O(|a|·|b|)` time and `O(|a|)` space via a backward DP.
-fn edit_last_row_rev(a: Array[String], b: Array[String]) -> Array[Int] {
+fn edit_last_row_rev(a : Array[String], b : Array[String]) -> Array[Int32] {
   let n = a.length()
   let m = b.length()
   // `next[i]` holds the distance between `a[i..]` and `b[(k + 1)..]`.
-  let mut next: Array[Int] = Array::make(n + 1, 0)
+  let mut next : Array[Int32] = Array::make(n + 1, 0)
   for i = 0; i <= n; i = i + 1 {
     next[i] = n - i
   }
-  let mut cur: Array[Int] = Array::make(n + 1, 0)
+  let mut cur : Array[Int32] = Array::make(n + 1, 0)
   for k = m - 1; k >= 0; k = k - 1 {
     cur[n] = m - k
     for i = n - 1; i >= 0; i = i - 1 {
@@ -361,28 +374,29 @@ fn edit_last_row_rev(a: Array[String], b: Array[String]) -> Array[Int] {
   next
 }
 
+///|
 /// Recursive Hirschberg edit-script computation: split `b` in the middle, find
 /// the optimal split row `i*` in `a`, and recurse. Space usage is `O(|a|+|b|)`
 /// regardless of input size — hence "linear space".
 fn linear_rec(
-  a: Array[String],
-  a0: Int,
-  a1: Int,
-  b: Array[String],
-  b0: Int,
-  b1: Int
+  a : Array[String],
+  a0 : Int32,
+  a1 : Int32,
+  b : Array[String],
+  b0 : Int32,
+  b1 : Int32,
 ) -> Array[Change[String]] {
   let n = a1 - a0
   let m = b1 - b0
   if n == 0 {
-    let out: Array[Change[String]] = []
+    let out : Array[Change[String]] = []
     for j = b0; j < b1; j = j + 1 {
       out.push(Insert(b[j]))
     }
     return out
   }
   if m == 0 {
-    let out: Array[Change[String]] = []
+    let out : Array[Change[String]] = []
     for i = a0; i < a1; i = i + 1 {
       out.push(Delete(a[i]))
     }
@@ -407,7 +421,7 @@ fn linear_rec(
       best_i = i
     }
   }
-  let out: Array[Change[String]] = []
+  let out : Array[Change[String]] = []
   let left = linear_rec(a, a0, a0 + best_i, b, b0, b0 + mb)
   for c in left {
     out.push(c)
@@ -419,12 +433,13 @@ fn linear_rec(
   out
 }
 
+///|
 /// Linear-space minimal edit script (Hirschberg's algorithm). Produces the same
 /// kind of `Equal`/`Delete`/`Insert` script as `diff`, but uses only `O(|a|+|b|)`
 /// memory instead of `O(|a|·|b|)`, so it scales to very large inputs.
 pub fn diff_linear(
-  a: Array[String],
-  b: Array[String]
+  a : Array[String],
+  b : Array[String],
 ) -> Array[Change[String]] {
   linear_rec(a, 0, a.length(), b, 0, b.length())
 }

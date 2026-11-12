@@ -1,29 +1,32 @@
 // Copyright 2026 The moon-diff Authors.
 // Licensed under the Apache License, Version 2.0.
 
+///|
 /// A single unresolved 3-way conflict, captured with the three contributing
 /// versions of the conflicting region so a human (or a smarter resolver) can
 /// decide what the merged result should be.
 pub struct MergeConflict {
-  base: Array[String]
-  ours: Array[String]
-  theirs: Array[String]
+  base : Array[String]
+  ours : Array[String]
+  theirs : Array[String]
 }
 
+///|
 /// The outcome of a 3-way merge. `merged` is the full line list; when a region
 /// could not be resolved automatically it is emitted as conflict markers
 /// (diff3 style: `<<<<<<< ours` / `||||||| base` / `=======` / `>>>>>>> theirs`),
 /// so `merged` is always a complete, readable file. `conflicts` lists the
 /// structured form of each unresolved region.
 pub struct MergeResult {
-  merged: Array[String]
-  conflicts: Array[MergeConflict]
-  has_conflict: Bool
+  merged : Array[String]
+  conflicts : Array[MergeConflict]
+  has_conflict : Bool
 }
 
+///|
 /// Element-wise equality for two string arrays (used to decide whether a side
 /// actually changed a region relative to `base`).
-fn arrays_eq(a: Array[String], b: Array[String]) -> Bool {
+fn arrays_eq(a : Array[String], b : Array[String]) -> Bool {
   if a.length() != b.length() {
     return false
   }
@@ -35,6 +38,7 @@ fn arrays_eq(a: Array[String], b: Array[String]) -> Bool {
   true
 }
 
+///|
 /// For one side (`base -> side`), computes the *effective replacement block* for
 /// every base-line position `0..n` plus a trailing virtual position `n`.
 ///
@@ -44,18 +48,18 @@ fn arrays_eq(a: Array[String], b: Array[String]) -> Bool {
 /// aligned with `base`, so the two sides can be merged index-by-index. Leading
 /// insertions (prepends) are preserved because they attach to position `0`.
 fn side_blocks(
-  base: Array[String],
-  changes: Array[Change[String]]
+  base : Array[String],
+  changes : Array[Change[String]],
 ) -> Array[Array[String]] {
   let n = base.length()
-  let blocks: Array[Array[String]] = Array::make(n + 1, [])
-  let mut pending: Array[String] = []
+  let blocks : Array[Array[String]] = Array::make(n + 1, [])
+  let mut pending : Array[String] = []
   let mut i = 0
   for c in changes {
     match c {
       Equal(x) => {
         // flush pending inserts, then keep the base line
-        let b: Array[String] = []
+        let b : Array[String] = []
         for p in pending {
           b.push(p)
         }
@@ -66,7 +70,7 @@ fn side_blocks(
       }
       Delete(_) => {
         // base[i] removed; any pending inserts still belong to position i
-        let b: Array[String] = []
+        let b : Array[String] = []
         for p in pending {
           b.push(p)
         }
@@ -74,14 +78,12 @@ fn side_blocks(
         pending = []
         i = i + 1
       }
-      Insert(x) => {
-        pending.push(x)
-      }
+      Insert(x) => pending.push(x)
     }
   }
   // trailing insertions (after the last base line) live at position n
   if pending.length() > 0 {
-    let b: Array[String] = []
+    let b : Array[String] = []
     for p in pending {
       b.push(p)
     }
@@ -90,6 +92,7 @@ fn side_blocks(
   blocks
 }
 
+///|
 /// Performs a 3-way merge of line sequences using the classic *diff3* region
 /// strategy:
 ///
@@ -103,15 +106,15 @@ fn side_blocks(
 /// Prepends/appends and replacements are all handled correctly because each
 /// side is decomposed into base-line-aligned blocks.
 pub fn merge3(
-  base: Array[String],
-  ours: Array[String],
-  theirs: Array[String]
+  base : Array[String],
+  ours : Array[String],
+  theirs : Array[String],
 ) -> MergeResult {
   let b_blocks = side_blocks(base, diff(base, ours))
   let t_blocks = side_blocks(base, diff(base, theirs))
   let n = base.length()
-  let merged: Array[String] = []
-  let conflicts: Array[MergeConflict] = []
+  let merged : Array[String] = []
+  let conflicts : Array[MergeConflict] = []
   for k = 0; k <= n; k = k + 1 {
     let b_block = if k < n { [base[k]] } else { [] }
     let o_block = b_blocks[k]
@@ -146,39 +149,40 @@ pub fn merge3(
         merged.push(x)
       }
       merged.push(">>>>>>> theirs")
-      conflicts.push(
-        MergeConflict::{ base: b_block, ours: o_block, theirs: t_block },
-      )
+      conflicts.push(MergeConflict::{
+        base: b_block,
+        ours: o_block,
+        theirs: t_block,
+      })
     }
   }
-  MergeResult::{
-    merged,
-    conflicts,
-    has_conflict: conflicts.length() > 0,
-  }
+  MergeResult::{ merged, conflicts, has_conflict: conflicts.length() > 0, }
 }
 
+///|
 /// Convenience wrapper that merges raw texts (split on newlines) and returns the
 /// merged text with conflict markers embedded inline.
-pub fn merge3_text(base: String, ours: String, theirs: String) -> String {
+pub fn merge3_text(base : String, ours : String, theirs : String) -> String {
   let r = merge3(split_lines(base), split_lines(ours), split_lines(theirs))
   r.merged.join("\n")
 }
 
+///|
 /// Like `merge3_text`, but also reports the number of unresolved conflicts.
 pub fn merge3_count(
-  base: String,
-  ours: String,
-  theirs: String
-) -> (String, Int) {
+  base : String,
+  ours : String,
+  theirs : String,
+) -> (String, Int32) {
   let r = merge3(split_lines(base), split_lines(ours), split_lines(theirs))
   (r.merged.join("\n"), r.conflicts.length())
 }
 
+///|
 /// Resolves a merge result by always preferring `ours` in conflict regions. This
 /// mirrors `git merge -X ours`. The returned text contains no conflict markers.
-pub fn merge3_resolve_ours(r: MergeResult) -> Array[String] {
-  let out: Array[String] = []
+pub fn merge3_resolve_ours(r : MergeResult) -> Array[String] {
+  let out : Array[String] = []
   let m = r.merged
   let mut i = 0
   while i < m.length() {
@@ -202,10 +206,11 @@ pub fn merge3_resolve_ours(r: MergeResult) -> Array[String] {
   out
 }
 
+///|
 /// Resolves a merge result by always preferring `theirs` in conflict regions.
 /// Mirrors `git merge -X theirs`.
-pub fn merge3_resolve_theirs(r: MergeResult) -> Array[String] {
-  let out: Array[String] = []
+pub fn merge3_resolve_theirs(r : MergeResult) -> Array[String] {
+  let out : Array[String] = []
   let m = r.merged
   let mut i = 0
   while i < m.length() {

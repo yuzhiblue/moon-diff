@@ -1,6 +1,7 @@
 // Copyright 2026 The moon-diff Authors.
 // Licensed under the Apache License, Version 2.0.
 
+///|
 /// One classified change between two file trees.
 pub enum FileChange {
   /// A new file appeared at `path` with `content`.
@@ -13,14 +14,16 @@ pub enum FileChange {
   Renamed(String, String)
 }
 
+///|
 /// The full set of changes between two trees.
 pub struct TreeDiff {
-  changes: Array[FileChange]
+  changes : Array[FileChange]
 }
 
+///|
 /// Builds a deterministic (path-sorted) file set from raw `(path, content)` pairs.
-pub fn fileset(pairs: Array[(String, String)]) -> Array[(String, String)] {
-  let out: Array[(String, String)] = []
+pub fn fileset(pairs : Array[(String, String)]) -> Array[(String, String)] {
+  let out : Array[(String, String)] = []
   for p in pairs {
     out.push(p)
   }
@@ -36,11 +39,9 @@ pub fn fileset(pairs: Array[(String, String)]) -> Array[(String, String)] {
   out
 }
 
+///|
 /// Looks up a file's content by path, or `None` if absent.
-fn fileset_get(
-  fs: Array[(String, String)],
-  path: String
-) -> Option[String] {
+fn fileset_get(fs : Array[(String, String)], path : String) -> String? {
   for p in fs {
     if p.0 == path {
       return Some(p.1)
@@ -49,19 +50,20 @@ fn fileset_get(
   None
 }
 
+///|
 /// Line-based similarity (git's metric): `2 * common / (|a| + |b|)`, as a
 /// percentage. Two identical files score 100; disjoint files score 0.
-fn similarity(old: String, new: String) -> Int {
+fn similarity(old : String, new : String) -> Int32 {
   let a = split_lines(old)
   let b = split_lines(new)
   if a.length() == 0 && b.length() == 0 {
     return 100
   }
-  let cnt: Array[(String, Int)] = []
+  let cnt : Array[(String, Int32)] = []
   for x in b {
     imap_inc(cnt, x)
   }
-  let seen: Array[(String, Int)] = []
+  let seen : Array[(String, Int32)] = []
   let mut common = 0
   for x in a {
     let avail = imap_get(cnt, x)
@@ -74,25 +76,22 @@ fn similarity(old: String, new: String) -> Int {
   if a.length() + b.length() == 0 {
     100
   } else {
-    (2 * common * 100) / (a.length() + b.length())
+    2 * common * 100 / (a.length() + b.length())
   }
 }
 
+///|
 /// Greedy rename detection: pairs each removed file with the most similar added
 /// file whose similarity is at least `threshold`%. Returns the renames plus the
 /// removed/added files that could not be paired.
 fn detect_renames(
-  removed: Array[(String, String)],
-  added: Array[(String, String)],
-  threshold: Int
-) -> (
-  Array[FileChange],
-  Array[(String, String)],
-  Array[(String, String)]
-) {
-  let renames: Array[FileChange] = []
-  let rem_removed: Array[(String, String)] = []
-  let used_added: Array[(Int, Int)] = []
+  removed : Array[(String, String)],
+  added : Array[(String, String)],
+  threshold : Int32,
+) -> (Array[FileChange], Array[(String, String)], Array[(String, String)]) {
+  let renames : Array[FileChange] = []
+  let rem_removed : Array[(String, String)] = []
+  let used_added : Array[(Int32, Int32)] = []
   for r in removed {
     let (from, oc) = r
     let mut best_idx = -1
@@ -117,7 +116,7 @@ fn detect_renames(
       rem_removed.push(r)
     }
   }
-  let rem_added: Array[(String, String)] = []
+  let rem_added : Array[(String, String)] = []
   for ai = 0; ai < added.length(); ai = ai + 1 {
     let used = imap_get(used_added, ai)
     if used == 0 {
@@ -127,23 +126,20 @@ fn detect_renames(
   (renames, rem_removed, rem_added)
 }
 
+///|
 /// Computes the structural diff between two file trees. `threshold` is the
 /// minimum similarity (percent) to report a deletion+addition as a rename.
 pub fn diff_trees(
-  old_fs: Array[(String, String)],
-  new_fs: Array[(String, String)],
-  threshold: Int
+  old_fs : Array[(String, String)],
+  new_fs : Array[(String, String)],
+  threshold : Int32,
 ) -> TreeDiff {
-  let removed: Array[(String, String)] = []
-  let added: Array[(String, String)] = []
-  let modified: Array[FileChange] = []
+  let removed : Array[(String, String)] = []
+  let added : Array[(String, String)] = []
+  let modified : Array[FileChange] = []
   for p in old_fs {
     match fileset_get(new_fs, p.0) {
-      Some(nc) => {
-        if p.1 != nc {
-          modified.push(Modified(p.0, p.1, nc))
-        }
-      }
+      Some(nc) => if p.1 != nc { modified.push(Modified(p.0, p.1, nc)) }
       None => removed.push(p)
     }
   }
@@ -153,9 +149,10 @@ pub fn diff_trees(
       Some(_) => ()
     }
   }
-  let (renames, rem_removed, rem_added) =
-    detect_renames(removed, added, threshold)
-  let changes: Array[FileChange] = []
+  let (renames, rem_removed, rem_added) = detect_renames(
+    removed, added, threshold,
+  )
+  let changes : Array[FileChange] = []
   for c in modified {
     changes.push(c)
   }
@@ -168,11 +165,12 @@ pub fn diff_trees(
   for p in rem_added {
     changes.push(Added(p.0, p.1))
   }
-  TreeDiff::{ changes }
+  TreeDiff::{ changes, }
 }
 
+///|
 /// Strips a leading `a/` or `b/` (or `dev/null`) from a git path component.
-fn strip_dir(s: String) -> String {
+fn strip_dir(s : String) -> String {
   if substring(s, 0, 2) == "a/" {
     substring(s, 2, s.length())
   } else if substring(s, 0, 2) == "b/" {
@@ -182,12 +180,13 @@ fn strip_dir(s: String) -> String {
   }
 }
 
+///|
 /// Renders a single change as a Git-style patch fragment. `old_fs`/`new_fs` are
 /// needed to recover file contents for renames.
 fn render_change(
-  c: FileChange,
-  old_fs: Array[(String, String)],
-  new_fs: Array[(String, String)]
+  c : FileChange,
+  old_fs : Array[(String, String)],
+  new_fs : Array[(String, String)],
 ) -> String {
   match c {
     Modified(path, oc, nc) => git_diff_text(oc, nc, path, path, 3)
@@ -195,14 +194,18 @@ fn render_change(
       let sha = git_blob_hash(nc)
       diff_git_line(path, path) +
       "new file mode 100644\n" +
-      "index 0000000000000000000000000000000000000000.." + sha + "\n" +
+      "index 0000000000000000000000000000000000000000.." +
+      sha +
+      "\n" +
       to_unified(diff([], split_lines(nc)), "/dev/null", "b/" + path, 3)
     }
     Removed(path, oc) => {
       let sha = git_blob_hash(oc)
       diff_git_line(path, path) +
       "deleted file mode 100644\n" +
-      "index " + sha + "..0000000000000000000000000000000000000000\n" +
+      "index " +
+      sha +
+      "..0000000000000000000000000000000000000000\n" +
       to_unified(diff(split_lines(oc), []), "a/" + path, "/dev/null", 3)
     }
     Renamed(from, to) => {
@@ -215,11 +218,16 @@ fn render_change(
         None => ""
       }
       let sim = similarity(oc, nc)
-      let head =
-        diff_git_line(from, to) +
-        "similarity index " + sim.to_string() + "%\n" +
-        "rename from " + from + "\n" +
-        "rename to " + to + "\n"
+      let head = diff_git_line(from, to) +
+        "similarity index " +
+        sim.to_string() +
+        "%\n" +
+        "rename from " +
+        from +
+        "\n" +
+        "rename to " +
+        to +
+        "\n"
       if oc == nc {
         head
       } else {
@@ -229,8 +237,9 @@ fn render_change(
   }
 }
 
+///|
 /// The primary path of a change (used for sorting output deterministically).
-fn change_sort_key(c: FileChange) -> String {
+fn change_sort_key(c : FileChange) -> String {
   match c {
     Added(p, _) => p
     Removed(p, _) => p
@@ -239,11 +248,12 @@ fn change_sort_key(c: FileChange) -> String {
   }
 }
 
+///|
 /// Renders a full multi-file Git patch for the diff between two trees.
 pub fn render_tree_patch(
-  old_fs: Array[(String, String)],
-  new_fs: Array[(String, String)],
-  threshold: Int
+  old_fs : Array[(String, String)],
+  new_fs : Array[(String, String)],
+  threshold : Int32,
 ) -> String {
   let td = diff_trees(old_fs, new_fs, threshold)
   // stable sort of changes by primary path
@@ -257,16 +267,17 @@ pub fn render_tree_patch(
       j = j - 1
     }
   }
-  let parts: Array[String] = []
+  let parts : Array[String] = []
   for c in cs {
     parts.push(render_change(c, old_fs, new_fs))
   }
   parts.join("")
 }
 
+///|
 /// A short human-readable summary of a tree diff, e.g.
 /// `2 files changed, 1 renamed, 3 insertions(+), 1 deletion(-)`.
-pub fn tree_diff_summary(td: TreeDiff) -> String {
+pub fn tree_diff_summary(td : TreeDiff) -> String {
   let mut added = 0
   let mut removed = 0
   let mut modified = 0
@@ -291,7 +302,8 @@ pub fn tree_diff_summary(td: TreeDiff) -> String {
       Renamed(_, _) => renamed = renamed + 1
     }
   }
-  let mut s = (added + removed + modified + renamed).to_string() + " files changed"
+  let mut s = (added + removed + modified + renamed).to_string() +
+    " files changed"
   if renamed > 0 {
     s = s + ", " + renamed.to_string() + " renamed"
   }
@@ -304,11 +316,12 @@ pub fn tree_diff_summary(td: TreeDiff) -> String {
   s
 }
 
+///|
 /// Builds the new-file content from a Git hunk by keeping `+` (added) and
 /// ` ` (context) lines. This avoids the trailing-empty-line artifact that
 /// `apply_unified` would introduce when the old side is `/dev/null`.
-fn content_from_add_hunk(hunk: Array[String]) -> String {
-  let lines: Array[String] = []
+fn content_from_add_hunk(hunk : Array[String]) -> String {
+  let lines : Array[String] = []
   for line in hunk {
     if line.length() >= 1 {
       let fc = line[0].to_int()
@@ -320,17 +333,18 @@ fn content_from_add_hunk(hunk: Array[String]) -> String {
   lines.join("\n")
 }
 
+///|
 /// Applies a multi-file Git patch (as produced by `render_tree_patch`) to a
 /// file tree, returning the resulting tree or an error message.
 pub fn apply_tree_patch(
-  old_fs: Array[(String, String)],
-  patch: String
+  old_fs : Array[(String, String)],
+  patch : String,
 ) -> Result[Array[(String, String)], String] {
   let work = fileset(old_fs)
   let lines = split_lines(patch)
   // group into per-file sections separated by "diff --git"
-  let sections: Array[Array[String]] = []
-  let mut cur: Array[String] = []
+  let sections : Array[Array[String]] = []
+  let mut cur : Array[String] = []
   for line in lines {
     if line.length() >= 11 && substring(line, 0, 11) == "diff --git " {
       if cur.length() > 0 {
@@ -395,7 +409,7 @@ pub fn apply_tree_patch(
     if first_at < 0 && !is_new && !is_del && rename_from.length() == 0 {
       continue
     }
-    let hunk: Array[String] = []
+    let hunk : Array[String] = []
     if first_at >= 0 {
       for si = first_at; si < sec.length(); si = si + 1 {
         hunk.push(sec[si])
@@ -407,12 +421,11 @@ pub fn apply_tree_patch(
         Some(x) => x
         None => ""
       }
-      let nc =
-        if hunk.length() > 0 {
-          apply_unified(oc, hunk.join("\n"))
-        } else {
-          oc
-        }
+      let nc = if hunk.length() > 0 {
+        apply_unified(oc, hunk.join("\n"))
+      } else {
+        oc
+      }
       // remove source
       let mut k = 0
       while k < work.length() {

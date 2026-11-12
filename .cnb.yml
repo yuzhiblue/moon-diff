@@ -7,9 +7,14 @@ stages:
     script:
       - 'curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- latest'
       - 'export PATH="$HOME/.moon/bin:$PATH"'
-      - 'moon version'
+      - 'moon version --all'
+      - 'moon fmt --check'
       - 'moon build --target wasm-gc'
       - 'moon test --target wasm-gc'
+      - 'moon build'
+      - 'moon test'
+      - 'moon run src/cli -- selftest'
+      - 'moon run --release src/bench'
 
   - name: mirror-to-github
     image: 'ubuntu:22.04'

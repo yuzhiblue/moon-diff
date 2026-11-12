@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yuzhiblue/moon-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzhiblue/moon-diff/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
-[![mooncakes](https://img.shields.io/badge/mooncakes-yuzhiblue%2Fmoon--diff-blue)](https://mooncakes.io/package/yuzhiblue/moon-diff)
+[![mooncakes](https://img.shields.io/badge/mooncakes-yuzhiblue%2Fmoon--diff-blue)](https://mooncakes.io/docs/yuzhiblue/moon-diff)
 
 > 🏆 2026 MoonBit 开源大赛 · 8月黑客松参赛项目
 > 申报书：📄 [docs/申报书-moon-diff.md](docs/申报书-moon-diff.md) ｜ 📑 [docs/申报书-moon-diff.pdf](docs/申报书-moon-diff.pdf)
@@ -19,8 +19,10 @@ and a **multi-file tree diff** — all with zero external dependencies.
 
 - **~4,000 effective lines of MoonBit** (core lib 3,275 + CLI 314 + tests 393; physical 4,879) —
   in the contest's reference 4,000–10,000 line range.
-- **53 tests** (41 unit + 12 fuzz), CI green on every push/PR (`moon build` + `moon test`).
-- Published on [MoonCakes](https://mooncakes.io/package/yuzhiblue/moon-diff) (v0.2.2).
+- **53 tests** (41 unit + 12 fuzz), green on both the `wasm-gc` and default `wasm` targets.
+  CI runs build/test, CLI example checks and the benchmark on every push/PR, plus a weekly
+  toolchain-compatibility run.
+- Published on [MoonCakes](https://mooncakes.io/docs/yuzhiblue/moon-diff) (v0.2.2).
 - Benchmarked against Python `difflib` — see [docs/bench_results.md](docs/bench_results.md).
 
 ## Features
@@ -78,13 +80,13 @@ moon add yuzhiblue/moon-diff
 Then import it in your package:
 
 ```mbt
-import yuzhiblue/moon-diff/diff
+import yuzhiblue/moon-diff/src/diff
 ```
 
 ## Quick start
 
 ```mbt
-import yuzhiblue/moon-diff/diff
+import yuzhiblue/moon-diff/src/diff
 
 // Diff two sequences (LCS based)
 let a = ["apple", "banana", "cherry"]
@@ -110,7 +112,7 @@ let result = apply_unified(old_text, patch)
 ### Choosing a diff algorithm
 
 ```mbt
-import yuzhiblue/moon-diff/diff
+import yuzhiblue/moon-diff/src/diff
 
 let a = ["the", "quick", "brown", "fox", "jumps"]
 let b = ["the", "slow", "brown", "fox", "sleeps"]
@@ -122,7 +124,7 @@ to_new(ch)  // == b
 ### 3-way merge
 
 ```mbt
-import yuzhiblue/moon-diff/diff
+import yuzhiblue/moon-diff/src/diff
 
 let (merged, n) = merge3_count("1\n2\n3", "1\n2\nX\n3", "1\n2\nY\n3")
 // merged contains diff3 conflict markers; n == 1 (one unresolved region)
@@ -131,7 +133,7 @@ let (merged, n) = merge3_count("1\n2\n3", "1\n2\nX\n3", "1\n2\nY\n3")
 ### Semantic JSON diff (RFC 6902)
 
 ```mbt
-import yuzhiblue/moon-diff/diff
+import yuzhiblue/moon-diff/src/diff
 
 let patch = json_diff_text("{\"a\":1,\"b\":2}", "{\"a\":1,\"b\":3}")
 // patch == [{"op":"replace","path":"/b","value":3}]
@@ -140,7 +142,7 @@ let patch = json_diff_text("{\"a\":1,\"b\":2}", "{\"a\":1,\"b\":3}")
 ### Multi-file tree diff
 
 ```mbt
-import yuzhiblue/moon-diff/diff
+import yuzhiblue/moon-diff/src/diff
 
 let old_fs = [("a.txt", "1\n2\n3"), ("b.txt", "x\ny")]
 let new_fs = [("a.txt", "1\n2\n3\n4"), ("c.txt", "hello")]
@@ -154,16 +156,16 @@ The `src/cli` package is a runnable example. Because the Core SDK ships no files
 multi-line inputs use the escape sequences `\n` (newline) and `\t` (tab):
 
 ```bash
-moon run cli -- diff "line1\nline2" "line1\nLINE2"
-moon run cli -- diff "line1\nline2" "line1\nLINE2" --stat            # git diff --stat style summary
-moon run cli -- diff "a b" "A  B" --ignore-whitespace --ignore-case  # ignore ws/case
-moon run cli -- patch "line1\nline2" "$(cat patch.txt)"     # patch text as one arg
-moon run cli -- merge "base" "ours" "theirs" --ours
-moon run cli -- json '{"a":1}' '{"a":2}'
-moon run cli -- jsonapply '{"a":1}' '[{"op":"replace","path":"/a","value":2}]'   # apply a JSON Patch
-moon run cli -- ratio "我爱北京" "我爱南京"                  # similarity in [0,1]
-moon run cli -- algo "old text" "new text"                  # edit distance of all 5 algorithms
-moon run cli -- selftest                                   # internal consistency checks
+moon run src/cli -- diff "line1\nline2" "line1\nLINE2"
+moon run src/cli -- diff "line1\nline2" "line1\nLINE2" --stat            # git diff --stat style summary
+moon run src/cli -- diff "a b" "A  B" --ignore-whitespace --ignore-case  # ignore ws/case
+moon run src/cli -- patch "line1\nline2" "$(cat patch.txt)"     # patch text as one arg
+moon run src/cli -- merge "base" "ours" "theirs" --ours
+moon run src/cli -- json '{"a":1}' '{"a":2}'
+moon run src/cli -- jsonapply '{"a":1}' '[{"op":"replace","path":"/a","value":2}]'   # apply a JSON Patch
+moon run src/cli -- ratio "我爱北京" "我爱南京"                  # similarity in [0,1]
+moon run src/cli -- algo "old text" "new text"                  # edit distance of all 5 algorithms
+moon run src/cli -- selftest                                   # internal consistency checks
 ```
 
 ## API reference
@@ -258,18 +260,58 @@ where `n, m` are the sequence lengths and `D` is the edit distance.
 ## Build & test
 
 ```bash
-moon build                  # build all packages (default + bench + cli)
-moon test                   # run the test suite (50+ cases)
-moon run cli -- selftest    # run the CLI's internal consistency checks
-moon run --release src/bench  # run the benchmark harness (MoonBit side)
+moon version --all              # record the toolchain used for verification
+moon fmt --check                # manifest + source formatting gate
+moon build                      # build all packages (wasm, the default target)
+moon test                       # run the test suite (53 cases)
+moon build --target wasm-gc     # build the second verified target
+moon test --target wasm-gc
+moon run src/cli -- selftest    # CLI internal consistency checks
+moon run --release src/bench    # benchmark harness (RESULT-line protocol)
 ```
 
-CI runs `moon build` and `moon test` on every push/PR via `.github/workflows/ci.yml`.
+CI (`.github/workflows/ci.yml` and `.cnb.yml`) installs the current MoonBit toolchain,
+records `moon version --all`, and runs the above checks on every push/PR plus a weekly
+scheduled compatibility run.
+
+## Toolchain compatibility
+
+Verified on 2026-11-12; `moon version --all` reported:
+
+| Component | Version |
+|-----------|---------|
+| `moon` | `0.1.20261104` (`940aa18`, 2026-11-04) |
+| `moonc` | `v0.10.20+65efd5b93` (2026-11-05) |
+| `moonrun` | `0.1.20261104` (`940aa18`, 2026-11-04) |
+
+- **Verified backends:** `wasm-gc` and `wasm` (the default target), also declared via
+  `supported_targets` in `moon.mod`. `native`, `js` and `llvm` are not part of the supported
+  matrix and have not been verified.
+- **Public API:** the library package is `yuzhiblue/moon-diff/src/diff`; downstream modules
+  should `import yuzhiblue/moon-diff/src/diff`. Verified by building and running a separate
+  consumer module against this checkout.
+- **Manifest format:** this module uses `moon.mod` / `moon.pkg`. Toolchains from
+  `0.1.20261104` on reject the legacy `moon.mod.json` / `moon.pkg.json` files. To migrate an
+  older checkout, run `moon fmt` once — it also updates `Int` → `Int32` and `derive` →
+  `#derive` syntax.
+- **Install / update:** see <https://www.moonbitlang.com/download/>. Linux/macOS:
+  `curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- latest`; Windows:
+  `irm https://cli.moonbitlang.com/install/powershell.ps1 | iex` (or the VS Code extension).
+  `moon upgrade` is experimental and needs an interactive terminal, so prefer the install
+  script for CI and other non-interactive shells.
+- **Windows PATH:** if an older system-wide install (for example
+  `C:\Program Files\MoonBit\bin`) is also on `PATH`, put `%USERPROFILE%\.moon\bin` **first**.
+  Mixing an old `moon` CLI with a new `core` fails with `Failed when discovering packages`.
+- Current toolchains emit `implicit_impl_as_method` and `test_unqualified_package` deprecation
+  warnings. They do not block the build or the test suite.
+- **Published package:** mooncakes lists `yuzhiblue/moon-diff@0.2.2` as the latest release. Its
+  rendered docs predate this maintenance update (they still show `moon.mod.json` and
+  `moon run cli`); the fixes here reach mooncakes only after the next `moon publish`.
 
 ## Project layout
 
 ```
-moon.mod.json
+moon.mod
 src/diff/
   types.mbt      # Change enum: Equal / Delete / Insert
   core.mbt       # lcs_table, diff, myers_diff, to_new / to_old, diff_lines, diff_lines_ignore, diff_chars, diff_tokens, tokenize, word_diff, word_diff_html, tokenize_unicode, diff_tokens_unicode, word_diff_unicode, word_diff_html_unicode, ratio, codepoints
@@ -283,10 +325,10 @@ src/diff/
   diff_test.mbt  # test blocks (run with `moon test`)
 src/cli/
   main.mbt       # command-line front-end (diff / patch / merge / json / jsonapply / ratio / algo / selftest)
-  moon.pkg.json
+  moon.pkg
 src/bench/
   bench.mbt      # benchmark harness (RESULT-line protocol)
-  moon.pkg.json
+  moon.pkg
 docs/
   benchmark.py   # MoonBit vs Python difflib driver
   bench_results.md
@@ -322,4 +364,4 @@ Apache License 2.0 — see [LICENSE](./LICENSE).
 
 - Repository: <https://github.com/yuzhiblue/moon-diff>
 - MoonBit: <https://www.moonbitlang.com/>
-- mooncakes: <https://mooncakes.io/package/yuzhiblue/moon-diff>
+- mooncakes: <https://mooncakes.io/docs/yuzhiblue/moon-diff>

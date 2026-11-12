@@ -5,17 +5,60 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Catch upstream toolchain regressions even when the repo is idle.
+    - cron: '17 1 * * 1'
+  workflow_dispatch:
 
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install MoonBit
+
+      - name: Install latest MoonBit toolchain
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- latest
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-      - name: Build
+
+      - name: Record verified toolchain versions
+        run: moon version --all
+
+      - name: Check manifest and source formatting
+        run: moon fmt --check
+
+      - name: Build (wasm-gc)
         run: moon build --target wasm-gc
-      - name: Test
+
+      - name: Test (wasm-gc)
         run: moon test --target wasm-gc
+
+      - name: Build (wasm, default target)
+        run: moon build
+
+      - name: Test (wasm, default target)
+        run: moon test
+
+      - name: Reproduce CLI examples
+        run: |
+          set -eu
+          moon run src/cli -- selftest
+          d="$(moon run src/cli -- diff 'line1\nline2' 'line1\nLINE2')"
+          printf '%s\n' "$d" | grep -q '^+LINE2$'
+          printf '%s\n' "$d" | grep -q '^-line2$'
+          s="$(moon run src/cli -- diff 'line1\nline2' 'line1\nLINE2' --stat)"
+          printf '%s\n' "$s" | grep -q '2 +-'
+          j="$(moon run src/cli -- json '{"a":1}' '{"a":2}')"
+          printf '%s\n' "$j" | grep -q '"op":"replace"'
+          ja="$(moon run src/cli -- jsonapply '{"a":1}' '[{"op":"replace","path":"/a","value":2}]')"
+          printf '%s\n' "$ja" | grep -q '{"a":2}'
+          p="$(moon run src/cli -- patch 'line1\nline2' '--- a.txt\n+++ b.txt\n@@ -1,2 +1,2 @@\n line1\n+LINE2\n-line2')"
+          printf '%s\n' "$p" | grep -q '^LINE2$'
+          moon run src/cli -- ratio '我爱北京' '我爱南京'
+          moon run src/cli -- algo 'old text' 'new text'
+          moon run src/cli -- merge '1\n2\n3' '1\n2\nX\n3' '1\n2\nY\n3' --ours
+
+      - name: Run benchmark harness
+        run: |
+          b="$(moon run --release src/bench)"
+          printf '%s\n' "$b" | grep -q '^DONE$'

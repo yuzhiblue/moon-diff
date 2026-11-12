@@ -22,19 +22,23 @@
 // (same constants as the Python reference) so both sides produce identical
 // corpora.
 
-let vocab: Array[String] = [
-  "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "theta", "kappa",
-  "lambda", "sigma",
+///|
+let vocab : Array[String] = [
+  "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "theta", "kappa", "lambda",
+  "sigma",
 ]
 
 // 31-bit LCG (same constants as the Python reference).
-fn lcg(state: Int64) -> Int64 {
+
+///|
+fn lcg(state : Int64) -> Int64 {
   (state * 1103515245L + 12345L) & 0x7fffffffL
 }
 
-fn gen_old(n: Int, seed: Int64) -> Array[String] {
+///|
+fn gen_old(n : Int32, seed : Int64) -> Array[String] {
   let mut state = seed
-  let out: Array[String] = []
+  let out : Array[String] = []
   for i = 0; i < n; i = i + 1 {
     state = lcg(state)
     out.push(vocab[(state % 10L).to_int()])
@@ -43,22 +47,24 @@ fn gen_old(n: Int, seed: Int64) -> Array[String] {
 }
 
 // `ratio` is an integer percentage (0..100).
-fn gen_new(old: Array[String], ratio: Int, seed: Int64) -> Array[String] {
+
+///|
+fn gen_new(old : Array[String], ratio : Int32, seed : Int64) -> Array[String] {
   let mut state = seed
   let r = ratio.to_int64()
-  let out: Array[String] = []
+  let out : Array[String] = []
   for i = 0; i < old.length(); i = i + 1 {
     state = lcg(state)
-    if (state % 1000L) < r {
+    if state % 1000L < r {
       state = lcg(state)
       let tok = vocab[(state % 10L).to_int()]
       state = lcg(state)
-      let is_delete = (state % 2L) == 1L
+      let is_delete = state % 2L == 1L
       if !is_delete {
         out.push(tok)
       }
       state = lcg(state)
-      if (state % 1000L) < (r * 3L / 10L) {
+      if state % 1000L < r * 3L / 10L {
         out.push(tok)
       }
     } else {
@@ -77,15 +83,17 @@ fn gen_new(old: Array[String], ratio: Int, seed: Int64) -> Array[String] {
 // `myers_diff`/`diff` operate word-by-word), while `old_str`/`new_str` are the
 // same corpora joined with spaces so the token-level `diff_tokens` sees real
 // word tokens.
+
+///|
 fn run_strategy(
-  strategy: String,
-  n: Int,
-  ratio: Int,
-  reps: Int,
-  old: Array[String],
-  new: Array[String],
-  old_str: String,
-  new_str: String
+  strategy : String,
+  n : Int32,
+  ratio : Int32,
+  reps : Int32,
+  old : Array[String],
+  new : Array[String],
+  old_str : String,
+  new_str : String,
 ) -> Unit {
   let mut sink = 0
   for r = 0; r < reps; r = r + 1 {
@@ -98,12 +106,21 @@ fn run_strategy(
     }
   }
   println(
-    "RESULT|" + strategy + "|" + n.to_string() + "|" + ratio.to_string() +
-    "|" + reps.to_string() + "|" + sink.to_string(),
+    "RESULT|" +
+    strategy +
+    "|" +
+    n.to_string() +
+    "|" +
+    ratio.to_string() +
+    "|" +
+    reps.to_string() +
+    "|" +
+    sink.to_string(),
   )
 }
 
-fn run_one(n: Int, ratio: Int, reps: Int) -> Unit {
+///|
+fn run_one(n : Int32, ratio : Int32, reps : Int32) -> Unit {
   let old = gen_old(n, 1234567L)
   let new = gen_new(old, ratio, 987654321L)
   let old_str = old.join(" ")
@@ -113,6 +130,7 @@ fn run_one(n: Int, ratio: Int, reps: Int) -> Unit {
   run_strategy("tokens", n, ratio, reps, old, new, old_str, new_str)
 }
 
+///|
 fn main {
   // Warm up the runtime so the first timed strategy is not penalised by
   // one-off startup costs.

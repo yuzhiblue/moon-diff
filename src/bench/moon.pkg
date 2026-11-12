@@ -1,0 +1,9 @@
+import {
+  "yuzhiblue/moon-diff/src/diff",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  name: "bench",
+)
