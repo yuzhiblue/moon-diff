@@ -22,7 +22,7 @@ and a **multi-file tree diff** — all with zero external dependencies.
 - **53 tests** (41 unit + 12 fuzz), green on both the `wasm-gc` and default `wasm` targets.
   CI runs build/test, CLI example checks and the benchmark on every push/PR, plus a weekly
   toolchain-compatibility run.
-- Published on [MoonCakes](https://mooncakes.io/docs/yuzhiblue/moon-diff) (v0.2.2).
+- Published on [MoonCakes](https://mooncakes.io/docs/yuzhiblue/moon-diff) (v0.2.3).
 - Benchmarked against Python `difflib` — see [docs/bench_results.md](docs/bench_results.md).
 
 ## Features
@@ -304,9 +304,9 @@ Verified on 2026-11-12; `moon version --all` reported:
   Mixing an old `moon` CLI with a new `core` fails with `Failed when discovering packages`.
 - Current toolchains emit `implicit_impl_as_method` and `test_unqualified_package` deprecation
   warnings. They do not block the build or the test suite.
-- **Published package:** mooncakes lists `yuzhiblue/moon-diff@0.2.2` as the latest release. Its
-  rendered docs predate this maintenance update (they still show `moon.mod.json` and
-  `moon run cli`); the fixes here reach mooncakes only after the next `moon publish`.
+- **Published package:** `yuzhiblue/moon-diff@0.2.3` is built with the `moon.mod` /
+  `moon.pkg` manifests and installs on current toolchains. Releases up to `0.2.2` still ship
+  the legacy `moon.mod.json` format, which `moon add` rejects on these toolchains.
 
 ## Project layout
 
